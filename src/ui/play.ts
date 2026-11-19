@@ -19,6 +19,7 @@ import { $, $$, abilityBadges, abilityShort, fmt3plain, fmtEra, gradeBadge, grad
 import { openConfirmModal } from './modal';
 import { latestNewsHTML } from './news';
 import { shareSeason } from './share';
+import { maybeShowGuide } from './guide';
 import { UI, resetTransientUi } from './state';
 
 const seasonDone = () => regularSeasonComplete(DB.schedule);
@@ -539,6 +540,7 @@ function confirmNewSeason(): void {
 
 export function wirePlayEvents(): void {
   wireDecisionCard();
+  if (UI.liveGame && !UI.liveGame.finished) maybeShowGuide();
   const cardEl = $('.decision-card');
   if (cardEl && !cardEl.dataset.seen) cardEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
   updateDiamondClasses(UI.liveGame || { bases: emptyBases() });

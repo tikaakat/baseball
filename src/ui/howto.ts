@@ -1,6 +1,10 @@
 /* 「遊び方」タブ */
 import { ABILITY_INFO, ABILITY_KEYS } from '../engine/data';
+import { buildBackup, restoreBackup } from '../engine/backup';
 import { clearSeasonHistory } from '../engine/history';
+import { DB } from '../engine/state';
+import { FEEDBACK_URL } from '../config';
+import { resetGuide } from './guide';
 import { clearSave } from '../engine/save';
 import { hardResetLeague } from '../engine/season';
 import { STORAGE_AVAILABLE } from '../engine/storage';
@@ -41,11 +45,58 @@ export function renderHowTo(): string {
     <div class="muted" style="margin-bottom:8px;">${STORAGE_AVAILABLE
       ? '試合の進み具合・選手・球団史は、この端末のブラウザに自動で保存されます。途中で閉じても、次に開けば続きから遊べます。'
       : 'このブラウザでは保存が使えないため、タブを閉じると最初からになります（プライベートブラウズでは保存できないことがあります）。'}</div>
+    <div class="row" style="margin-bottom:8px;">
+      <button class="btn secondary small" id="exportBtn">📥 バックアップを書き出す</button>
+      <button class="btn secondary small" id="importBtn">📤 バックアップを読み込む</button>
+      <input type="file" id="importFile" accept="application/json,.json" style="display:none;">
+    </div>
+    <div class="muted" style="font-size:11px;margin-bottom:10px;">ブラウザのデータを消すとセーブも消えます。長く遊んだリーグは、ときどきファイルに書き出しておくと安心です。別の端末に引っ越すときにも使えます。</div>
     <button class="btn secondary small" id="resetAllBtn">すべて消して最初から始める</button>
-  </div>`;
+  </div>
+  ${FEEDBACK_URL ? `<div class="card"><h2>ご意見・不具合の報告</h2><div class="muted" style="margin-bottom:8px;">遊んでみた感想や、おかしな動きを見つけたら教えてください。</div><a class="btn small" href="${FEEDBACK_URL}" target="_blank" rel="noopener">意見を送る</a></div>` : ''}
+  <div class="card"><h2>はじめての方へ</h2><button class="btn secondary small" id="replayGuideBtn">操作ガイドをもう一度見る</button></div>`;
 }
 
 export function wireHowToEvents(): void {
+  const exportBtn = $('#exportBtn');
+  if (exportBtn) exportBtn.onclick = () => {
+    void buildBackup({ myTeamId: UI.myTeamId, liveGame: UI.liveGame }).then((data) => {
+      const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `pencil-baseball-backup-season${DB.currentSeasonNum}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    });
+  };
+  const fileInput = $<HTMLInputElement>('#importFile');
+  const importBtn = $('#importBtn');
+  if (importBtn && fileInput) {
+    importBtn.onclick = () => fileInput.click();
+    fileInput.onchange = () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      openConfirmModal(`「${file.name}」を読み込みます。いまのリーグ（進行中のシーズン・選手・球団史）は、このファイルの内容に置き換わります。よろしいですか？`, () => {
+        void file.text().then(restoreBackup).then((ui) => {
+          clearHoldTimers();
+          resetTransientUi();
+          UI.myTeamId = ui.myTeamId;
+          UI.liveGame = ui.liveGame;
+          UI.seasonHistory = null;
+          UI.tab = 'play';
+          UI.flash = 'バックアップを読み込みました。';
+          render();
+        }).catch((e: unknown) => {
+          UI.flash = `読み込めませんでした：${e instanceof Error ? e.message : String(e)}`;
+          UI.tab = 'play';
+          render();
+        });
+      });
+    };
+  }
+  const replay = $('#replayGuideBtn');
+  if (replay) replay.onclick = () => { resetGuide(); UI.tab = 'play'; render(); };
+
   const btn = $('#resetAllBtn');
   if (!btn) return;
   btn.onclick = () => {

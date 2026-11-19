@@ -33,6 +33,11 @@ async function saveSeasonHistory(history: SeasonRecord[]): Promise<boolean> {
   return false;
 }
 
+/** 球団史をまるごと置き換える（バックアップの読み込み用） */
+export async function replaceSeasonHistory(history: SeasonRecord[]): Promise<void> {
+  if (!(await saveSeasonHistory(history))) throw new Error(DB.lastStorageError || '球団史を保存できませんでした');
+}
+
 export async function clearSeasonHistory(): Promise<void> {
   await kvRemove(HISTORY_KEY);
 }

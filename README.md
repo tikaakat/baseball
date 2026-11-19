@@ -39,3 +39,10 @@ src/
 tests/           Vitest（日程・シーズン進行・NPBとのバランス比較・長期シミュレーション・保存・能力と監督）
 original/        移行元の単一HTML版
 ```
+
+## 公開まわりの設定
+
+- **アクセス解析**：`src/config.ts` の `GOATCOUNTER_CODE` に GoatCounter のサイトコードを入れると有効になります（Cookieを使わず、個人を特定しない解析。https://www.goatcounter.com で無料登録）。
+- **ご意見フォーム**：`src/config.ts` の `FEEDBACK_URL` に Google フォームなどのURLを入れると、「遊び方」タブにリンクが出ます。
+- **SNSのプレビュー画像**：`index.html` の `og:url` / `og:image` は公開URL（`https://tikaakat.github.io/baseball/`）を前提にしています。URLが変わったら書き換えてください。
+- **ホーム画面に追加・オフライン**：`public/manifest.webmanifest` と `public/sw.js`（キャッシュ名 `pencil-baseball-v1`）。
