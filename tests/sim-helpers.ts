@@ -1,3 +1,5 @@
+import { createSchedule } from '../src/engine/schedule';
+import { emptyStatLine } from '../src/engine/stats';
 import { autoSimGame, newGame } from '../src/engine/game';
 import { DB, teamById } from '../src/engine/state';
 
@@ -34,4 +36,14 @@ export function summarizeLeague(): LeagueSummary {
     sbPerTeam: t.sb / DB.teams.length,
     tieRate: ties / games,
   };
+}
+
+/** 同じ選手・監督のまま、成績だけを白紙に戻して日程を作り直す（条件比較用） */
+export function resetSeasonKeepRosters(): void {
+  DB.teams.forEach((t) => {
+    t.wins = 0; t.losses = 0; t.ties = 0; t.runsFor = 0; t.runsAgainst = 0;
+    t.roster.forEach((p) => { p.stats = emptyStatLine(); });
+  });
+  DB.schedule = createSchedule(DB.teams);
+  DB.postseason = null;
 }

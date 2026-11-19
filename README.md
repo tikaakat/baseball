@@ -30,8 +30,10 @@ src/
     postseason.ts  クライマックスシリーズ・日本シリーズ
     awards.ts      表彰
     history.ts     球団史の保存
+    save.ts        進行中のリーグの保存・復元
+    storage.ts     保存先（localStorage など）の切り替え
     season.ts      リーグ初期化・シーズン移行
   ui/            各タブの描画とイベント
-tests/           Vitest（シーズン進行・バランス確認）
+tests/           Vitest（シーズン進行・バランス・保存・能力と監督の効果）
 original/        移行元の単一HTML版
 ```

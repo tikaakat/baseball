@@ -1,6 +1,6 @@
 /* 試合の進行 */
 import { currentBattingKey, emptyBases, finalizeAtBat, resolveAtBat, rollPencil1, rollPencil2 } from './atbat';
-import { pickWeightedFielderForError } from './player';
+import { managerEffects } from './team';
 import { DB } from './state';
 import type { Game, P1Face, P2Face, Play, Player, SeriesKey, Team } from './types';
 import { frac } from './util';
@@ -63,11 +63,8 @@ export function applyPlay(game: Game, play: Play): void {
   if (sacFlyCounts) target.sac++;
   if (play.rawResult === 'error') {
     game.errors[fieldingKey]++;
-    // 失策を相手守備陣から1人選んで個人成績に加算（ゴールデングラブ賞の集計に使う）
-    const fieldingTeam = game[fieldingKey];
-    if (fieldingTeam.roster.length) {
-      statsTarget(game, pickWeightedFielderForError(fieldingTeam.roster)).errors++;
-    }
+    // 失策した野手の個人成績に加算（ゴールデングラブ賞の集計に使う）
+    if (play.errorFielder) statsTarget(game, play.errorFielder).errors++;
   }
   if (runsThisPlay.length) {
     if (play.rawResult !== 'error') target.rbi += runsThisPlay.length; // 失策での生還は打点にしない
@@ -112,11 +109,11 @@ function attemptSteal(game: Game): { success: boolean; runner: Player } | null {
   if (game.finished) return null;
   const runner = game.bases.first;
   if (!runner || game.bases.second) return null;
-  const runnerMgr = game[currentBattingKey(game)].manager;
-  const stealMult = runnerMgr?.stealBoost || 1;
-  const attemptChance = Math.max(0, frac(runner.speed) - 0.3) * 0.22 * stealMult;
+  const stealMult = managerEffects(game[currentBattingKey(game)].manager).stealBoost || 1;
+  const isStealer = runner.ability === 'stealer'; // 俊足盗塁王：仕掛けやすく、成功率も高い
+  const attemptChance = Math.max(0, frac(runner.speed) - 0.3) * 0.22 * stealMult * (isStealer ? 1.8 : 1);
   if (Math.random() >= attemptChance) return null;
-  const successChance = 0.55 + frac(runner.speed) * 0.35;
+  const successChance = Math.min(0.95, 0.55 + frac(runner.speed) * 0.35 + (isStealer ? 0.08 : 0));
   const success = Math.random() < successChance;
   const target = statsTarget(game, runner);
   if (success) {

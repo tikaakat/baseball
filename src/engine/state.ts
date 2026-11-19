@@ -1,5 +1,5 @@
 /* リーグ全体の状態（唯一の可変データ） */
-import { DEFAULT_LEAGUE_NAMES } from './data';
+import { DEFAULT_LEAGUE_NAMES, LEAGUE_CODES } from './data';
 import type { DBState, Player, Team } from './types';
 
 export const DB: DBState = {
@@ -12,12 +12,12 @@ export const DB: DBState = {
 };
 
 /**
- * リーグ名を返す。
- * 注意：元のHTML版と同様、ポストシーズンや球団史では 'H'/'B' というキーで呼ばれており、
- * DB.leagueNames（キーは 'E'/'W'）に一致しないため常に既定名にフォールバックしている。
+ * リーグ名を返す。リーグコード（'E'/'W'）のほか、順位表・ポストシーズン・球団史で使う
+ * 'H'（=1つ目のリーグ）/'B'（=2つ目のリーグ）も受け付ける。
  */
 export function leagueName(code: string): string {
-  return DB.leagueNames?.[code] || (code === 'H' ? 'イーストリーグ' : 'ウエストリーグ');
+  const key = code === 'H' ? LEAGUE_CODES[0] : code === 'B' ? LEAGUE_CODES[1] : code;
+  return DB.leagueNames?.[key] || DEFAULT_LEAGUE_NAMES[key] || key;
 }
 
 export function teamById(id: string): Team | undefined {

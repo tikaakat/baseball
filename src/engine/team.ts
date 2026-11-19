@@ -2,7 +2,7 @@
 import { ABILITY_AFFINITY, BATTING_SLOT_PRIORITY, MANAGER_TYPES, POSITIONS, RETIREMENT_AGE, TEAM_DEFS } from './data';
 import { createPlayer, performanceScore, pickPlayerIdentity, pickUniformNumber, retirePlayer } from './player';
 import { DB } from './state';
-import type { GachaResult, Player, Team } from './types';
+import type { GachaResult, Manager, ManagerEffects, Player, Team } from './types';
 import { choice, pickWeightedOrNone, randInt } from './util';
 
 /** 能力に応じて守備位置を割り振る（指名打者制のため投手は打席に立たない） */
@@ -57,6 +57,11 @@ export function buildBattingOrder(roster: Player[]): Player[] {
   for (let i = 0; i < 4; i++) order.push(takeBest((p) => p.contact + p.power + p.speed));
   assignAbilitiesByBattingOrder(order);
   return order;
+}
+
+/** 監督の采配効果（タイプから引く。保存データに効果を持たせないので、調整してもすぐ反映される） */
+export function managerEffects(m: Manager | null | undefined): ManagerEffects {
+  return (m && MANAGER_TYPES.find((t) => t.key === m.type)) || {};
 }
 
 export function hireNewManager(team: Team): void {

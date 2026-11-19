@@ -57,12 +57,8 @@ export interface ManagerType extends ManagerEffects {
   desc: string;
 }
 
-/**
- * チームに就任中の監督。
- * 効果（ManagerEffects）は本来ここに載る想定だが、現状の hireNewManager は効果をコピーしていない
- * （＝元のHTML版と同じく、監督の効果は実際には発揮されていない）。
- */
-export interface Manager extends ManagerEffects {
+/** チームに就任中の監督。効果は type（MANAGER_TYPES の key）から managerEffects() で引く */
+export interface Manager {
   type: string;
   label: string;
   desc: string;
@@ -128,6 +124,8 @@ export interface ContactResult {
 }
 
 export interface Play extends ContactResult {
+  /** 失策が記録された野手（失策でなければ null） */
+  errorFielder: Player | null;
   p1: P1Face;
   p2: P2Face | null;
   usedPencil2: boolean;

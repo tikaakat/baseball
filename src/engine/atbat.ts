@@ -1,5 +1,7 @@
 /* 1打席の判定：鉛筆の出目 → 能力・状況による補正 → 走者の進塁 */
 import { P1_WEIGHTS, P2_WEIGHTS } from './data';
+import { pickWeightedFielderForError } from './player';
+import { managerEffects } from './team';
 import type { AbilityKey, Bases, BaseKey, ContactResult, Game, Outcome, P1Face, P2Face, Play, Player } from './types';
 import { frac, weightedChoice } from './util';
 
@@ -25,8 +27,11 @@ function forceAdvance(orig: Bases, nb: Bases, batter: Player, scored: Player[]):
   }
 }
 
-/** 打球結果から走者の動き・アウト・得点を決める */
-export function resolveContact(result: Outcome, batter: Player, bases: Bases, mgrGidpResist = 0): ContactResult {
+/**
+ * 打球結果から走者の動き・アウト・得点を決める。
+ * speed は監督効果などを反映した打者の実質走力（塁に置くのは常に batter 本体）
+ */
+export function resolveContact(result: Outcome, batter: Player, bases: Bases, mgrGidpResist = 0, speed = batter.speed): ContactResult {
   const orig = bases;
   const nb = emptyBases();
   const scored: Player[] = [];
@@ -43,7 +48,7 @@ export function resolveContact(result: Outcome, batter: Player, bases: Bases, mg
       if (orig.third) scored.push(orig.third);
       if (orig.second) scored.push(orig.second);
       if (orig.first) {
-        if (Math.random() < Math.max(0, frac(batter.speed) - 0.4) * 0.25) nb.third = orig.first;
+        if (Math.random() < Math.max(0, frac(speed) - 0.4) * 0.25) nb.third = orig.first;
         else nb.second = orig.first;
       }
       nb.first = batter;
@@ -85,7 +90,7 @@ export function resolveContact(result: Outcome, batter: Player, bases: Bases, mg
         const advanceMap: Partial<Record<BaseKey, BaseKey>> = { first: 'second', second: 'third' };
         nb.first = orig.first; nb.second = orig.second; nb.third = orig.third;
         nb[targetKey] = null;
-        if (Math.random() < frac(batter.speed) * 0.18 + mgrGidpResist) gidpEscaped = true;
+        if (Math.random() < frac(speed) * 0.18 + mgrGidpResist) gidpEscaped = true;
         if (!gidpEscaped && batter.ability === 'steady' && Math.random() < 0.12) gidpEscaped = true;
         isGidp = !gidpEscaped;
         outsAdded = gidpEscaped ? 1 : 2;
@@ -128,9 +133,9 @@ export function finalizeAtBat(batter: Player, p1: P1Face, p2: P2Face | null, bas
   if (game) {
     const battingKey = currentBattingKey(game);
     const fieldingKey = battingKey === 'home' ? 'away' : 'home';
-    const battingMgr = game[battingKey].manager;
-    const fieldingMgr = game[fieldingKey].manager;
-    if (battingMgr) {
+    const battingMgr = managerEffects(game[battingKey].manager);
+    const fieldingMgr = managerEffects(game[fieldingKey].manager);
+    {
       if (battingMgr.statMult) {
         const m = battingMgr.statMult;
         batter = {
@@ -146,7 +151,7 @@ export function finalizeAtBat(batter: Player, p1: P1Face, p2: P2Face | null, bas
         abilityNote ??= `${batter.name}、監督の待球方針で四球を選ぶ`;
       }
     }
-    if (fieldingMgr?.errorReduction) mgrErrorMult = fieldingMgr.errorReduction;
+    if (fieldingMgr.errorReduction) mgrErrorMult = fieldingMgr.errorReduction;
     // 守備力：野手陣の平均守備力が高いほど失策が起きにくい
     const fieldingTeam = game[fieldingKey];
     if (fieldingTeam.roster.length) {
@@ -167,12 +172,14 @@ export function finalizeAtBat(batter: Player, p1: P1Face, p2: P2Face | null, bas
   const isFirstPaThisGame = !!game && !game.battedThisGame.has(realBatter.id);
   const isRISP = !!(bases.second || bases.third);
   const isBasesLoaded = !!(bases.first && bases.second && bases.third);
-  let isTrailing = false, isLuckySeven = false;
+  let isTrailing = false, isLuckySeven = false, isLateInning = false, isInningLeadoff = false;
   if (game) {
     const battingKey = currentBattingKey(game);
     const oppKey = battingKey === 'home' ? 'away' : 'home';
     isTrailing = game.score[battingKey] < game.score[oppKey];
     isLuckySeven = game.inning === 7;
+    isLateInning = game.inning >= 8;
+    isInningLeadoff = game.outs === 0 && !bases.first && !bases.second && !bases.third;
   }
   const isOut = () => OUT_RESULTS.includes(result);
 
@@ -188,6 +195,10 @@ export function finalizeAtBat(batter: Player, p1: P1Face, p2: P2Face | null, bas
   if (!abilityKey && batter.ability === 'luckySeven' && isLuckySeven && isOut() && Math.random() < 0.25) {
     result = 'hit'; abilityNote = `${batter.name}、ラッキーセブンで魅せる！`; abilityKey = 'luckySeven';
   }
+  // 先頭打者：無死走者なし（イニング先頭）で凡打がヒットに
+  if (!abilityKey && batter.ability === 'inningStarter' && isInningLeadoff && isOut() && Math.random() < 0.25) {
+    result = 'hit'; abilityNote = `${batter.name}、先頭打者として出塁！`; abilityKey = 'inningStarter';
+  }
   // 勝負強い：得点圏で長打に
   if (batter.ability === 'clutch' && isRISP) {
     if (result === 'hit' && Math.random() < 0.30) { result = 'double'; abilityNote = `${batter.name}、勝負強さを発揮！二塁打に`; abilityKey = 'clutch'; }
@@ -197,6 +208,15 @@ export function finalizeAtBat(batter: Player, p1: P1Face, p2: P2Face | null, bas
   if (batter.ability === 'basesLoadedHero' && isBasesLoaded) {
     if (result === 'hit' && Math.random() < 0.35) { result = 'double'; abilityNote = `${batter.name}、満塁男の本領発揮！二塁打に`; abilityKey = 'basesLoadedHero'; }
     else if (result === 'double' && Math.random() < 0.35) { result = 'hr'; abilityNote = `${batter.name}、満塁男の本領発揮！満塁本塁打だ！`; abilityKey = 'basesLoadedHero'; }
+  }
+  // 逆転の一発：8回以降のビハインドで長打に
+  if (!abilityKey && batter.ability === 'lateInningPower' && isLateInning && isTrailing) {
+    if (result === 'hit' && Math.random() < 0.30) { result = 'double'; abilityNote = `${batter.name}、終盤の反撃！二塁打に`; abilityKey = 'lateInningPower'; }
+    else if (result === 'double' && Math.random() < 0.30) { result = 'hr'; abilityNote = `${batter.name}、終盤に起死回生の一発！`; abilityKey = 'lateInningPower'; }
+  }
+  // 選球眼：三振が四球に
+  if (!abilityKey && batter.ability === 'goodEye' && result === 'k' && Math.random() < 0.30) {
+    result = 'walk'; abilityNote = `${batter.name}、際どい球を見極めて四球`; abilityKey = 'goodEye';
   }
   // 一発長打：二塁打が本塁打に
   if (batter.ability === 'bigSwing' && result === 'double' && Math.random() < 0.22) {
@@ -229,14 +249,23 @@ export function finalizeAtBat(batter: Player, p1: P1Face, p2: P2Face | null, bas
   if (!abilityKey && batter.ability === 'steady' && result === 'k' && Math.random() < 0.12) {
     result = 'groundout'; abilityNote = `${batter.name}、堅実なバットコントロールでゴロに`; abilityKey = 'steady';
   }
-  // 失策：ゴロ・フライのアウトが、まれに相手の失策で出塁に変わる
+  // 失策：ゴロ・フライのアウトが、まれに相手の失策で出塁に変わる（守備力の低い野手ほどやらかしやすい）
+  let errorFielder: Player | null = null;
   if ((result === 'groundout' || result === 'flyout') && Math.random() < 0.03 * mgrErrorMult) {
-    result = 'error';
+    const fieldingRoster = game ? game[currentBattingKey(game) === 'home' ? 'away' : 'home'].roster : [];
+    errorFielder = fieldingRoster.length ? pickWeightedFielderForError(fieldingRoster) : null;
+    // 守備の達人：自分の失策を好プレーで防ぐ
+    if (errorFielder?.ability === 'defenseAce' && Math.random() < 0.5) {
+      abilityNote = `${errorFielder.name}の好守備！失策を防いだ`; abilityKey = 'defenseAce';
+      errorFielder = null;
+    } else {
+      result = 'error';
+    }
   }
 
   if (game) game.battedThisGame.add(realBatter.id);
-  const play = resolveContact(result, batter, bases, mgrGidpResist);
-  return { ...play, p1, p2, usedPencil2, abilityNote, abilityKey, batter: realBatter, rawResult: result };
+  const play = resolveContact(result, realBatter, bases, mgrGidpResist, batter.speed);
+  return { ...play, errorFielder, p1, p2, usedPencil2, abilityNote, abilityKey, batter: realBatter, rawResult: result };
 }
 
 export function resolveAtBat(batter: Player, bases: Bases, game: Game | null): Play {
