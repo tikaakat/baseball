@@ -1,0 +1,121 @@
+/* 「選手名鑑」タブ */
+import { ABILITY_INFO } from '../engine/data';
+import { DB, leagueName, teamById } from '../engine/state';
+import { avgOfStats, opsOfStats } from '../engine/stats';
+import type { Player } from '../engine/types';
+import { render } from './app';
+import { $, $$, fmt3, fmt3plain, formatNumber, gradeBadge, nameBadge } from './format';
+import { openEditPlayerModal, openEditTeamModal } from './modal';
+import { UI } from './state';
+
+export function renderRoster(): string {
+  return UI.rosterTeamId ? rosterDetailHTML(UI.rosterTeamId) : rosterListHTML();
+}
+
+function rosterListHTML(): string {
+  const cards = DB.teams.map((t) => `
+    <div class="team-card" data-team="${t.id}">
+      <div class="row between" style="align-items:flex-start;">
+        <div class="lg">${leagueName(t.league)}</div>
+        <button class="edit-btn" data-editteam="${t.id}">✎ 編集</button>
+      </div>
+      <div class="tn">${t.name}</div>
+      <div class="tg">${t.tagline}</div>
+      <div class="rec">${t.wins}勝 ${t.losses}敗 ${t.ties}分</div>
+    </div>`).join('');
+  return `<div class="card"><h2>球団一覧</h2><div class="team-grid">${cards}</div></div>`;
+}
+
+function rosterDetailHTML(teamId: string): string {
+  const t = teamById(teamId)!;
+  const allPlayersFlat: Player[] = [];
+  DB.teams.forEach((tm) => tm.roster.forEach((p) => allPlayersFlat.push(p)));
+
+  const abilityRows = t.battingOrder.map((p, i) => `
+    <div class="player-row">
+      <div class="pos">${i + 1}</div>
+      <div class="nm">#${formatNumber(p.number)} ${nameBadge(p, allPlayersFlat)}（${p.pos}）　${p.age}歳${p.ability ? `<span class="pill" style="margin-left:6px;">${ABILITY_INFO[p.ability].label}</span>` : ''}
+        <div class="abl">パワー${gradeBadge(p.power)}　ミート${gradeBadge(p.contact)}　走力${gradeBadge(p.speed)}　在籍${p.seasonsPlayed || 0}年目</div>
+        ${p.ability ? `<div class="abl" style="color:var(--pencil);">${ABILITY_INFO[p.ability].desc}</div>` : ''}
+      </div>
+      <button class="edit-btn" data-editplayer="${p.id}">✎</button>
+    </div>`).join('');
+
+  const managerHtml = t.manager ? `<div class="card">
+    <h2>監督</h2>
+    <div class="muted">${t.manager.label}　<span class="pill">就任${t.manager.hireSeason}年目〜　残り任期${t.manager.tenureYears}年</span></div>
+    <div class="muted" style="margin-top:4px;">${t.manager.desc}</div>
+  </div>` : '';
+
+  const statMode = UI.rosterStatMode || 'season';
+  const statRows = t.battingOrder.map((p, i) => {
+    const s = statMode === 'career' ? p.career : p.stats;
+    return `
+    <tr>
+      <td>${i + 1}</td>
+      <td class="name">${nameBadge(p, allPlayersFlat)}<span class="muted" style="font-size:9px;">(${p.pos})</span></td>
+      <td>${fmt3(avgOfStats(s))}</td>
+      <td>${s.h}</td>
+      <td>${s.hr}</td>
+      <td>${s.rbi}</td>
+      <td>${s.sb || 0}</td>
+      <td>${fmt3plain(opsOfStats(s))}</td>
+    </tr>`;
+  }).join('');
+
+  const alumni = t.alumni || [];
+  const alumniHtml = alumni.length ? `<details class="howto">
+    <summary>OB（退団選手） ${alumni.length}名</summary>
+    <table class="compact-table"><thead><tr><th class="namehead">選手</th><th>在籍</th><th>打率</th><th>OPS</th><th>安打</th><th>本塁打</th><th>打点</th></tr></thead>
+    <tbody>${alumni.slice().reverse().map((a) => `<tr><td class="name">${a.name}(${a.pos})</td><td>${a.seasonsPlayed}年</td><td>${fmt3(avgOfStats(a.career))}</td><td>${fmt3plain(opsOfStats(a.career))}</td><td>${a.career.h}</td><td>${a.career.hr}</td><td>${a.career.rbi}</td></tr>`).join('')}</tbody></table>
+  </details>` : '';
+
+  return `
+  <div class="card">
+    <div class="row between">
+      <button class="btn secondary small" id="backToTeamsBtn">← 球団一覧に戻る</button>
+      <button class="edit-btn" data-editteam="${t.id}">✎ 編集</button>
+    </div>
+    <div style="margin-top:10px;">
+      <div class="lg muted">${leagueName(t.league)}</div>
+      <h2 style="margin-top:2px;">${t.name}</h2>
+      <div class="muted" style="font-style:italic;margin-bottom:8px;">${t.tagline}</div>
+      <div class="muted">${t.wins}勝 ${t.losses}敗 ${t.ties}分　得点${t.runsFor}／失点${t.runsAgainst}</div>
+    </div>
+  </div>
+  ${managerHtml}
+  <div class="card">
+    <h2>打順・能力<span class="muted" style="font-size:11px;font-weight:400;">（成績に応じて自動編成）</span></h2>
+    ${abilityRows}
+    ${alumniHtml}
+  </div>
+  <div class="card">
+    <div class="row between"><h2 style="margin:0;">チーム成績（打順順）</h2></div>
+    <div class="subtabs">
+      <button class="${statMode === 'season' ? 'active' : ''}" data-statmode="season">今シーズン</button>
+      <button class="${statMode === 'career' ? 'active' : ''}" data-statmode="career">通算</button>
+    </div>
+    <div class="muted" style="font-size:10.5px;margin-bottom:4px;">詳しい成績（出塁率・長打率・四球・三振など）は「個人成績」タブで確認できます。</div>
+    <table class="compact-table">
+      <thead><tr><th></th><th class="namehead">選手</th><th>打率</th><th>安打</th><th>本塁打</th><th>打点</th><th>盗塁</th><th>OPS</th></tr></thead>
+      <tbody>${statRows}</tbody>
+    </table>
+  </div>`;
+}
+
+export function wireRosterEvents(): void {
+  $$('[data-team]').forEach((c) => {
+    c.onclick = () => { UI.rosterTeamId = c.dataset.team!; render(); };
+  });
+  $$('[data-editteam]').forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); openEditTeamModal(b.dataset.editteam!); };
+  });
+  $$('[data-editplayer]').forEach((b) => {
+    b.onclick = (e) => { e.stopPropagation(); openEditPlayerModal(b.dataset.editplayer!); };
+  });
+  $$('[data-statmode]').forEach((b) => {
+    b.onclick = () => { UI.rosterStatMode = b.dataset.statmode as 'season' | 'career'; render(); };
+  });
+  const back = $('#backToTeamsBtn');
+  if (back) back.onclick = () => { UI.rosterTeamId = null; render(); };
+}
