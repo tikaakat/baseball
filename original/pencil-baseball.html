@@ -1,0 +1,2796 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>六角鉛筆ベースボール</title>
+<style>
+:root{
+  --bg:#182620;
+  --panel:#213329;
+  --panel-light:#2c4133;
+  --line:#3a5646;
+  --pencil:#f2b632;
+  --pencil-dark:#c98f1d;
+  --graphite:#2a2621;
+  --cream:#f3ecd9;
+  --dim:#a9c2ae;
+  --away:#6fb0d8;
+  --home:#f2b632;
+  --good:#7fd858;
+  --bad:#e0654f;
+  --pink:#e8697d;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:radial-gradient(ellipse at top, #24382d 0%, var(--bg) 60%);
+  color:var(--cream);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+  min-height:100vh;
+  padding-bottom:40px;
+}
+.wrap{max-width:720px;margin:0 auto;padding:14px 12px 0;}
+
+/* ---------- header / nav ---------- */
+.hero{
+  text-align:center;
+  padding:18px 10px 10px;
+}
+.hero h1{
+  font-family:'Courier New',monospace;
+  font-weight:900;
+  font-size:clamp(20px,6vw,30px);
+  letter-spacing:2px;
+  margin:0 0 4px;
+  color:var(--pencil);
+  text-shadow:0 2px 0 var(--pencil-dark);
+}
+.hero p{margin:0;color:var(--dim);font-size:12.5px;letter-spacing:.5px;}
+
+.tabbar{
+  display:flex;gap:6px;overflow-x:auto;padding:10px 0 12px;
+  border-bottom:1px solid var(--line);
+  scrollbar-width:none;
+}
+.tabbar::-webkit-scrollbar{display:none;}
+.tabbtn{
+  flex:0 0 auto;
+  background:var(--panel);
+  color:var(--dim);
+  border:1px solid var(--line);
+  border-radius:999px;
+  padding:8px 14px;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.tabbtn.active{background:var(--pencil);color:#2a1e04;border-color:var(--pencil-dark);}
+
+.section{padding:16px 2px 8px;}
+.card{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:14px;
+  margin-bottom:12px;
+}
+.card h2{margin:0 0 10px;font-size:15px;color:var(--pencil);letter-spacing:.5px;}
+.muted{color:var(--dim);font-size:12.5px;}
+.btn{
+  background:var(--pencil);
+  color:#2a1e04;
+  border:none;
+  border-radius:10px;
+  padding:10px 16px;
+  font-weight:800;
+  font-size:14px;
+  cursor:pointer;
+  box-shadow:0 3px 0 var(--pencil-dark);
+}
+.btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--pencil-dark);}
+.btn.secondary{background:var(--panel-light);color:var(--cream);box-shadow:0 3px 0 var(--line);}
+.btn.small{padding:6px 10px;font-size:12px;border-radius:8px;}
+.btn:disabled{opacity:.4;cursor:default;box-shadow:none;transform:none;}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.row.between{justify-content:space-between;}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th,td{padding:6px 5px;text-align:center;border-bottom:1px solid var(--line);}
+th{color:var(--pencil);font-size:11px;letter-spacing:.5px;}
+td.name{text-align:left;font-weight:700;}
+tr.me td{background:rgba(242,182,50,0.08);}
+td.hl{color:var(--pencil);font-weight:900;}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+.table-scroll table{min-width:520px;}
+
+/* ---------- schedule list ---------- */
+.game-row{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--panel-light);border-radius:10px;padding:9px 12px;margin-bottom:7px;
+  font-size:13px;
+}
+.game-row .vs{flex:1;}
+.game-row .vs b{color:var(--pencil);}
+.game-row .actions{display:flex;gap:6px;}
+.pill{display:inline-block;font-size:10.5px;background:var(--graphite);color:var(--dim);border-radius:6px;padding:2px 6px;margin-left:6px;}
+
+/* ---------- play screen ---------- */
+.matchup{text-align:center;font-size:13px;color:var(--dim);margin-bottom:4px;}
+.matchup b{color:var(--cream);font-size:15px;}
+.scoreboard{
+  background:var(--graphite);
+  border:2px solid var(--pencil-dark);
+  border-radius:12px;
+  padding:12px 14px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin:10px 0 14px;
+  font-family:'Courier New',monospace;
+}
+.sb-team{text-align:center;flex:1;}
+.sb-team .nm{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:120px;margin:0 auto;}
+.sb-team .sc{font-size:30px;font-weight:900;color:var(--cream);}
+.sb-mid{text-align:center;flex:0 0 auto;padding:0 10px;}
+.sb-inning{font-size:13px;color:var(--pencil);font-weight:700;}
+.sb-outs{margin-top:5px;}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--panel-light);border:1px solid var(--dim);margin:0 2px;}
+.dot.on{background:var(--bad);border-color:var(--bad);}
+
+.linescore{
+  font-family:'Courier New',monospace;
+  background:var(--graphite);border-radius:10px;
+  margin:0 0 12px;
+  width:100%;
+  table-layout:fixed;
+}
+.linescore th, .linescore td{padding:3px 1px;font-size:9.5px;border-bottom:1px solid var(--line);text-align:center;}
+.linescore th{color:var(--dim);font-weight:700;}
+.linescore td.name, .linescore th.namehead{width:50px;}
+.linescore td.name{text-align:left;color:var(--cream);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:inherit;padding-left:4px;}
+.compact-table{width:100%;table-layout:fixed;}
+.compact-table th, .compact-table td{padding:4px 2px;font-size:10px;text-align:center;}
+.compact-table td.name{width:34%;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-left:4px;}
+.compact-table th.namehead{width:34%;}
+.linescore td.hl{color:var(--pencil);font-weight:900;}
+
+.diamond-wrap{display:flex;justify-content:center;margin:12px 0;}
+.diamond{position:relative;width:180px;height:180px;}
+.base{
+  position:absolute;width:28px;height:28px;
+  background:var(--panel-light);border:2px solid var(--line);
+  transform:rotate(45deg);border-radius:3px;
+  transition:.2s;
+}
+.base.occ{background:var(--pencil);border-color:var(--pencil-dark);box-shadow:0 0 14px rgba(242,182,50,.7);}
+#b-second{top:0;left:50%;margin-left:-14px;}
+#b-first{top:50%;right:6px;margin-top:-14px;}
+#b-third{top:50%;left:6px;margin-top:-14px;}
+#b-home{
+  position:absolute;bottom:-4px;left:50%;margin-left:-11px;
+  width:22px;height:22px;background:var(--cream);
+  clip-path:polygon(50% 0%,100% 40%,100% 100%,0% 100%,0% 40%);
+}
+.runners-text{text-align:center;font-size:12px;color:var(--dim);margin-bottom:10px;}
+.runners-text b{color:var(--pencil);}
+
+.batter-card{
+  background:var(--panel-light);border-radius:12px;padding:12px;margin-bottom:12px;
+  display:flex;align-items:center;gap:12px;
+}
+.batter-card .pos{
+  background:var(--graphite);color:var(--pencil);font-weight:900;font-size:13px;
+  width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.batter-card .info{flex:1;}
+.batter-card .info .nm{font-weight:800;font-size:15px;}
+.batter-card .stats{font-size:11px;color:var(--dim);margin-top:2px;}
+.batter-card .stats span{margin-right:8px;color:var(--pencil);}
+
+.dice-area{display:flex;gap:16px;justify-content:center;align-items:center;margin:16px 0;}
+.hex{
+  width:76px;height:66px;
+  position:relative;
+  background:
+    repeating-linear-gradient(115deg, rgba(255,255,255,0.22) 0 4px, rgba(0,0,0,0) 4px 14px),
+    linear-gradient(100deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0) 18%, rgba(0,0,0,0.10) 55%, rgba(255,255,255,0.16) 72%, rgba(0,0,0,0.14) 100%),
+    linear-gradient(135deg, var(--pencil), var(--pencil-dark));
+  clip-path:polygon(25% 0%,75% 0%,100% 50%,75% 100%,25% 100%,0% 50%);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:12px;color:#2a1e04;text-align:center;
+  border:2px solid var(--graphite);
+  box-shadow:
+    inset 0 2px 2px rgba(255,255,255,0.35),
+    inset 0 -4px 5px rgba(0,0,0,0.28),
+    0 5px 10px rgba(0,0,0,0.4);
+}
+.hex.dim{opacity:.3;filter:grayscale(1);}
+.hex.spin{animation:rollSpin .8s cubic-bezier(.3,.9,.4,1);}
+@keyframes rollSpin{
+  0%  {transform:rotate(0deg) scale(1);}
+  60% {transform:rotate(612deg) scale(1.1);}
+  80% {transform:rotate(684deg) scale(0.92);}
+  100%{transform:rotate(720deg) scale(1);}
+}
+.hex-label{font-size:10px;color:var(--dim);text-align:center;margin-top:4px;}
+
+.roll-btn-wrap{text-align:center;margin:10px 0 4px;}
+.hold-hint{font-size:10.5px;color:var(--dim);margin-top:5px;}
+
+.gacha-row{
+  background:var(--panel-light);border-radius:10px;padding:10px 12px;margin-bottom:8px;
+  border:1px solid var(--pencil-dark);
+}
+.gacha-team{font-size:11px;color:var(--dim);margin-bottom:4px;}
+.gacha-swap{font-size:13px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.gacha-out{color:var(--dim);text-decoration:line-through;}
+.gacha-arrow{color:var(--pencil);font-weight:900;}
+.gacha-in{color:var(--pencil);font-weight:800;}
+.roll-btn{font-size:16px;padding:14px 28px;border-radius:14px;}
+
+.play-note{
+  text-align:center;min-height:20px;font-size:13px;color:var(--pencil);font-weight:700;margin:6px 0;
+}
+
+.ability-flash{
+  background:linear-gradient(135deg, var(--pink), #b84a5c);
+  color:#fff;text-align:center;font-weight:900;font-size:15px;letter-spacing:.5px;
+  border-radius:12px;padding:10px 14px;margin:8px 0;
+  box-shadow:0 0 0 2px rgba(255,255,255,0.15) inset, 0 6px 18px rgba(232,105,125,0.55);
+  animation:abilityPop .45s cubic-bezier(.34,1.56,.64,1);
+}
+.ability-flash-note{
+  font-size:12px;font-weight:600;opacity:0.92;margin-top:3px;letter-spacing:0;
+}
+@keyframes abilityPop{
+  0%{transform:scale(0.75) translateY(4px);opacity:0;}
+  55%{transform:scale(1.07) translateY(0);opacity:1;}
+  100%{transform:scale(1) translateY(0);}
+}
+
+.log-box{
+  background:var(--graphite);border-radius:10px;padding:10px 12px;
+  max-height:170px;overflow-y:auto;font-size:12px;color:var(--dim);
+  display:flex;flex-direction:column-reverse;gap:4px;
+}
+.log-box div{border-bottom:1px dashed #333;padding-bottom:4px;}
+.log-box div:last-child{border-bottom:none;}
+
+.finish-banner{
+  background:var(--panel-light);border:2px solid var(--pencil);border-radius:14px;
+  padding:16px;text-align:center;margin-top:14px;
+}
+.finish-banner .score{font-size:22px;font-weight:900;color:var(--pencil);margin:6px 0 10px;}
+
+/* ---------- team card / roster ---------- */
+.team-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:480px){.team-grid{grid-template-columns:1fr;}}
+.team-card{
+  background:var(--panel-light);border-radius:12px;padding:12px;cursor:pointer;border:1px solid var(--line);
+}
+.team-card:hover{border-color:var(--pencil);}
+.team-card .lg{font-size:10px;color:var(--dim);}
+.team-card .tn{font-weight:800;font-size:14px;margin:2px 0;}
+.team-card .tg{font-size:11.5px;color:var(--dim);font-style:italic;}
+.team-card .rec{margin-top:6px;font-size:12px;font-family:'Courier New',monospace;color:var(--pencil);}
+
+.player-row{display:flex;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);}
+.player-row .pos{width:26px;height:26px;border-radius:50%;background:var(--graphite);color:var(--pencil);font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.player-row .nm{flex:1;font-weight:700;font-size:13px;}
+.player-row .abl{font-size:10px;color:var(--dim);line-height:1.5;}
+.player-row .line{font-size:11px;color:var(--dim);font-family:'Courier New',monospace;text-align:right;}
+
+details.howto{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:14px;}
+details.howto summary{cursor:pointer;color:var(--pencil);font-weight:700;font-size:13px;}
+details.howto .rules{font-size:12.5px;color:var(--dim);line-height:1.8;margin-top:8px;}
+details.howto table{margin-top:6px;}
+details.howto th,details.howto td{border-bottom:1px solid var(--line);padding:4px;}
+
+.flash{
+  background:var(--pencil);color:#2a1e04;border-radius:10px;padding:8px 12px;font-size:12.5px;font-weight:700;
+  margin-bottom:10px;text-align:center;
+}
+.subtabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.subtabs button{
+  background:var(--panel-light);color:var(--dim);border:1px solid var(--line);border-radius:8px;
+  padding:6px 10px;font-size:12px;cursor:pointer;
+}
+.subtabs button.active{background:var(--pencil);color:#2a1e04;font-weight:800;border-color:var(--pencil-dark);}
+
+.edit-btn{
+  background:var(--graphite);color:var(--pencil);border:1px solid var(--pencil-dark);
+  border-radius:8px;font-size:11px;padding:4px 8px;cursor:pointer;flex:0 0 auto;
+}
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(10,15,12,0.72);
+  display:flex;align-items:center;justify-content:center;z-index:100;padding:16px;
+}
+.modal-box{
+  background:var(--panel);border:1px solid var(--pencil-dark);border-radius:14px;
+  padding:18px;max-width:360px;width:100%;
+}
+.modal-box h2{margin:0 0 10px;font-size:15px;color:var(--pencil);}
+.modal-box p{font-size:13.5px;line-height:1.6;margin:0 0 4px;}
+.modal-box label{display:block;font-size:11.5px;color:var(--dim);margin:10px 0 4px;}
+.modal-box input[type="text"]{
+  width:100%;background:var(--graphite);border:1px solid var(--line);border-radius:8px;
+  color:var(--cream);padding:9px 10px;font-size:14px;
+}
+.modal-box input[type="text"]:focus{outline:2px solid var(--pencil);}
+.modal-box select{
+  width:100%;background:var(--graphite);border:1px solid var(--line);border-radius:8px;
+  color:var(--cream);padding:9px 10px;font-size:14px;
+}
+select[data-gachaselect]{
+  width:100%;background:var(--graphite);border:1px solid var(--pencil-dark);border-radius:10px;
+  color:var(--cream);padding:14px 12px;font-size:15px;min-height:52px;line-height:1.4;
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+
+<script>
+/* =========================================================
+   六角鉛筆ベースボール — Pencil Baseball League — engine
+   ========================================================= */
+
+const POSITIONS = ["指","捕","一","二","三","遊","左","中","右"];
+
+const SURNAMES = ["鈴木","佐藤","高橋","田中","伊藤","渡辺","山本","中村","小林","加藤",
+  "吉田","山田","佐々木","山口","松本","井上","木村","林","斎藤","清水",
+  "阿部","森","池田","橋本","石川","前田","藤田","岡田","長谷川","村上",
+  "近藤","石井","坂本","遠藤","青木","福田","三浦","西村","藤井","岡本",
+  "中川","中島","小川","大野","竹内","金子","原田","上田","柴田","宮崎",
+  "横山","宮本","内田","高木","安藤","谷口","丸山","今井","高田","増田",
+  "小野","田村","高野","河野","藤本","山下","石田","大西","菅原","浜田",
+  "杉山","小島","平野","久保","星野","荒木","岩崎","堀","秋山","本田"];
+
+const TEAM_DEFS = [
+  {name:"東京ジャイアンツ", league:"E", tagline:"削れば削るほど、鋭くなる。"},
+  {name:"横浜ブルーオーシャンズ",       league:"E", tagline:"転がっても、狙いは外さない。"},
+  {name:"新潟アルビレックス", league:"E", tagline:"白と黒、決着は芯の硬さで。"},
+  {name:"仙台アークナイツ",           league:"E", tagline:"薄く、硬く、正確に。"},
+  {name:"札幌シャイニングス",         league:"E", tagline:"木の香りと共に、一振り。"},
+  {name:"甲府モンキーズ",         league:"E", tagline:"丸くても、まっすぐ飛ぶ。"},
+  {name:"大阪バファローズ",    league:"W", tagline:"間違いも、なかったことに。"},
+  {name:"京都フラワーピース",      league:"W", tagline:"下から支える、静かな強さ。"},
+  {name:"博多ホークス",    league:"W", tagline:"カチッと一押し、芯が出る。"},
+  {name:"神戸スパーズ",  league:"W", tagline:"黒鉛が導く、静かな連携。"},
+  {name:"広島レッドドラゴンズ",    league:"W", tagline:"蓋をして、また明日。"},
+  {name:"名古屋ウィングス",         league:"W", tagline:"折れても、また削ればいい。"},
+];
+// チーム定義から実際のリーグコードを動的に取得する（'H'/'B'決め打ちだと、リーグコードを変更したときに全部壊れるため）
+const LEAGUE_CODES = [...new Set(TEAM_DEFS.map(d=>d.league))];
+
+const FACE_LABEL = {
+  hit:"ヒット", flyout:"フライ", groundout:"ゴロ", k:"三振", otto:"おっと…",
+  double:"２ベース", triple:"３ベース", hr:"HR！", walk:"四球"
+};
+const P1_FACES = ['hit','flyout','groundout','k','walk','otto'];
+const P2_FACES = ['double','double','hr','k','flyout','groundout'];
+
+const GIVEN_NAMES = [
+  {name:"翔太",initial:"s"}, {name:"陸",initial:"r"}, {name:"蓮",initial:"r"}, {name:"颯",initial:"s"},
+  {name:"悠斗",initial:"y"}, {name:"大輝",initial:"d"}, {name:"健太",initial:"k"}, {name:"太郎",initial:"t"},
+  {name:"次郎",initial:"j"}, {name:"一郎",initial:"i"}, {name:"誠",initial:"m"}, {name:"健二",initial:"k"},
+  {name:"洋平",initial:"y"}, {name:"拓也",initial:"t"}, {name:"隼人",initial:"h"}, {name:"直樹",initial:"n"},
+  {name:"裕也",initial:"y"}, {name:"和也",initial:"k"}, {name:"雄大",initial:"y"}, {name:"賢人",initial:"k"},
+  {name:"諒",initial:"r"}, {name:"翼",initial:"t"}, {name:"淳",initial:"j"}, {name:"浩二",initial:"k"},
+  {name:"聡",initial:"s"}, {name:"卓也",initial:"t"}, {name:"武",initial:"t"}, {name:"修平",initial:"s"},
+  {name:"広大",initial:"k"}, {name:"優",initial:"y"}, {name:"大樹",initial:"d"}, {name:"康平",initial:"k"},
+  {name:"航",initial:"w"}, {name:"駿",initial:"s"}, {name:"樹",initial:"i"}, {name:"稜",initial:"r"},
+  {name:"創",initial:"s"}, {name:"陽翔",initial:"h"}, {name:"新",initial:"a"}, {name:"貴之",initial:"t"},
+  {name:"正人",initial:"m"}, {name:"和樹",initial:"k"}, {name:"竜也",initial:"t"}, {name:"光",initial:"h"},
+  {name:"豪",initial:"g"}, {name:"茂",initial:"s"}, {name:"信治",initial:"s"}, {name:"昌弘",initial:"m"},
+  {name:"英樹",initial:"h"}, {name:"崇",initial:"t"}
+];
+// 外国人選手用の名前プール（NPB風に姓・名をセットで持つ）
+const FOREIGN_NAMES = [
+  {surname:"スミス",given:"マイク",initial:"m"}, {surname:"ジョンソン",given:"クリス",initial:"c"},
+  {surname:"ロドリゲス",given:"カルロス",initial:"c"}, {surname:"ガルシア",given:"ホセ",initial:"j"},
+  {surname:"マルティネス",given:"ルイス",initial:"l"}, {surname:"ブラウン",given:"トニー",initial:"t"},
+  {surname:"ウィリアムズ",given:"ジェイク",initial:"j"}, {surname:"デービス",given:"ライアン",initial:"r"},
+  {surname:"ペレス",given:"ダニエル",initial:"d"}, {surname:"ゴンザレス",given:"マーカス",initial:"m"},
+  {surname:"テイラー",given:"アダム",initial:"a"}, {surname:"アンダーソン",given:"ネイト",initial:"n"},
+  {surname:"トーマス",given:"ケビン",initial:"k"}, {surname:"ヘルナンデス",given:"ミゲル",initial:"m"},
+  {surname:"モラレス",given:"フアン",initial:"j"}, {surname:"クルーズ",given:"エディ",initial:"e"},
+  {surname:"ジャクソン",given:"デレク",initial:"d"}, {surname:"ロビンソン",given:"ブレット",initial:"b"},
+  {surname:"バティスタ",given:"ラファエル",initial:"r"}, {surname:"キム",given:"ジュン",initial:"j"},
+  {surname:"ウォーカー",given:"ザック",initial:"z"}, {surname:"ヤング",given:"コディ",initial:"c"},
+  {surname:"ハリス",given:"オースティン",initial:"a"}, {surname:"キング",given:"タイラー",initial:"t"},
+  {surname:"ライト",given:"ブライアン",initial:"b"}, {surname:"ロペス",given:"ディエゴ",initial:"d"},
+  {surname:"サンチェス",given:"パブロ",initial:"p"}, {surname:"ラミレス",given:"エクトル",initial:"e"},
+  {surname:"パク",given:"ミンス",initial:"m"}, {surname:"チェン",given:"ウェイ",initial:"w"}
+];
+// 外国人選手が生まれる確率（NPB風に、日本人選手より少なめ）
+const FOREIGN_PLAYER_RATE = 0.16;
+function pickPlayerIdentity(excludeNames){
+  const ex = excludeNames || [];
+  if(Math.random() < FOREIGN_PLAYER_RATE){
+    const pool = FOREIGN_NAMES.filter(n=>!ex.includes(n.surname));
+    const pick = choice(pool.length ? pool : FOREIGN_NAMES);
+    return {surname:pick.surname, given:pick.given, initial:pick.initial};
+  }
+  const pool = SURNAMES.filter(n=>!ex.includes(n));
+  const surname = choice(pool.length ? pool : SURNAMES);
+  const g = choice(GIVEN_NAMES);
+  return {surname, given:g.name, initial:g.initial};
+}
+
+const ABILITY_INFO = {
+  leadoff:{label:"一番打者向き", desc:"その試合の第一打席は、凡打がヒットに化けやすい。"},
+  clutch:{label:"勝負強い", desc:"得点圏に走者がいると、長打に化けやすい。"},
+  bigSwing:{label:"一発長打", desc:"状況を問わず、二塁打が本塁打に化けやすい。"},
+  steady:{label:"堅実", desc:"三振や併殺を粘って防ぎやすい。"},
+  comeback:{label:"逆転の一振り", desc:"自チームがビハインドの場面で、凡打がヒットに化けやすい。"},
+  luckySeven:{label:"ラッキーセブン", desc:"7回になると、凡打がヒットに化けやすい。"},
+  basesLoadedHero:{label:"満塁男", desc:"満塁の場面で、長打に化けやすい（勝負強いより強力）。"},
+  inningStarter:{label:"先頭打者", desc:"無死走者なしの場面（イニング先頭）で、凡打がヒットに化けやすい。"},
+  goodEye:{label:"選球眼", desc:"三振が四球に変わりやすい。"},
+  lateInningPower:{label:"逆転の一発", desc:"8回以降、自チームがビハインドの場面で長打に化けやすい。"},
+  stealer:{label:"俊足盗塁王", desc:"盗塁を仕掛けやすく、成功率も高い。"},
+  defenseAce:{label:"守備の達人", desc:"自分が失策の対象に選ばれても、好プレーで防ぐことがある。"},
+};
+const ABILITY_KEYS = Object.keys(ABILITY_INFO);
+
+// 打順(0=1番〜8=9番)ごとの能力の出やすさ。値の合計が低いほど「無能力」の余地が大きい。
+// 1-2番=一番打者向き/堅実/選球眼/俊足、3-5番=勝負強い/一発長打/満塁男/逆転の一発、下位打線は堅実・守備中心で控えめ。
+const ABILITY_AFFINITY = [
+  {leadoff:0.28, inningStarter:0.10, stealer:0.10, steady:0.06, comeback:0.04},              // 1番
+  {steady:0.18, goodEye:0.10, leadoff:0.06, inningStarter:0.06, comeback:0.04},               // 2番
+  {clutch:0.22, basesLoadedHero:0.09, bigSwing:0.07, lateInningPower:0.05, comeback:0.04},    // 3番
+  {bigSwing:0.24, basesLoadedHero:0.12, clutch:0.09, lateInningPower:0.07},                   // 4番
+  {bigSwing:0.18, clutch:0.15, basesLoadedHero:0.07, lateInningPower:0.06},                   // 5番
+  {clutch:0.09, steady:0.09, luckySeven:0.07, goodEye:0.06, comeback:0.05},                   // 6番
+  {steady:0.13, luckySeven:0.07, defenseAce:0.06, comeback:0.05},                             // 7番
+  {steady:0.12, luckySeven:0.05, defenseAce:0.08, comeback:0.04},                             // 8番
+  {steady:0.08, defenseAce:0.08, comeback:0.03},                                              // 9番(最下位打者)
+];
+function pickWeightedOrNone(affinity){
+  const r = Math.random();
+  let acc = 0;
+  for(const key of Object.keys(affinity)){
+    acc += affinity[key];
+    if(r < acc) return key;
+  }
+  return null;
+}
+// 打順が決まった後に、打順のタイプに合った特殊能力を割り振る
+function assignAbilitiesByBattingOrder(battingOrder){
+  battingOrder.forEach((p,slot)=>{
+    p.ability = pickWeightedOrNone(ABILITY_AFFINITY[slot] || {});
+  });
+}
+
+function randInt(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+function choice(arr){ return arr[randInt(0,arr.length-1)]; }
+function shuffle(arr){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+// 能力は内部的に1〜256の細かい数値で持ち、表示はパワプロ風のA〜G評価＋色で行う
+const GRADE_TIERS = [
+  {min:220, grade:'A', color:'#e0473f'},
+  {min:184, grade:'B', color:'#f2924a'},
+  {min:147, grade:'C', color:'#f2d43f'},
+  {min:110, grade:'D', color:'#a8d84a'},
+  {min:74,  grade:'E', color:'#4ac97a'},
+  {min:37,  grade:'F', color:'#4a9de0'},
+  {min:1,   grade:'G', color:'#9a9a9a'},
+];
+function gradeOf(v){ for(const t of GRADE_TIERS){ if(v>=t.min) return t.grade; } return 'G'; }
+function gradeColorOf(v){ for(const t of GRADE_TIERS){ if(v>=t.min) return t.color; } return '#9a9a9a'; }
+function gradeBadge(v){
+  return `<span style="display:inline-block;background:${gradeColorOf(v)};color:#1a1208;font-weight:900;border-radius:4px;padding:0px 6px;font-size:11px;line-height:1.5;">${gradeOf(v)}</span>`;
+}
+function frac(v){ return Math.max(0, Math.min(1, (v-1)/255)); } // 1〜256 → 0〜1
+// 失策が起きた際、守備力の低い選手ほど「やらかしやすい」ように重み付きで選ぶ
+function pickWeightedFielderForError(roster){
+  const weights = roster.map(p=>(256-(p.defense||128))+10);
+  const total = weights.reduce((a,b)=>a+b,0);
+  let r = Math.random()*total;
+  for(let i=0;i<roster.length;i++){ r -= weights[i]; if(r<=0) return roster[i]; }
+  return roster[roster.length-1];
+}
+
+let PLAYER_SEQ=1;
+function emptyStatLine(){ return {pa:0,ab:0,bb:0,h:0,doubles:0,triples:0,hr:0,k:0,rbi:0,r:0,gidp:0,sac:0,errors:0,sb:0,cs:0}; }
+// 年齢の成長曲線：内部的に「早熟／普通／大器晩成」を割り振り、ピーク年齢を過ぎたら能力は下がり続ける（内部データのみ、UIには出さない）
+const GROWTH_TYPES = ['early','normal','late'];
+const GROWTH_PEAK = {early:25, normal:28, late:32};
+function applyAging(p){
+  p.age = (p.age||24) + 1;
+  const peak = GROWTH_PEAK[p.growthType] || 28;
+  const dist = p.age - peak;
+  let changeChance, direction, magnitude;
+  if(dist <= -3){ changeChance=0.45; direction=1; magnitude=randInt(4,14); }         // 成長期：伸びやすい
+  else if(dist>=-2 && dist<=1){ changeChance=0.12; direction=1; magnitude=randInt(2,8); } // 全盛期：ごく僅かに伸びることも
+  else if(dist<=4){ changeChance=0.45; direction=-1; magnitude=randInt(4,12); }      // 下降開始：緩やかに衰える
+  else if(dist<=8){ changeChance=0.65; direction=-1; magnitude=randInt(8,20); }      // はっきり衰える
+  else { changeChance=0.8; direction=-1; magnitude=randInt(15,30); }                 // ベテラン：大きく衰える
+  if(Math.random()<changeChance){
+    const stat = choice(['power','contact','speed']);
+    p[stat] = Math.max(1, Math.min(256, p[stat]+direction*magnitude));
+  }
+}
+function createPlayer(pos,identity,youngProspect,debutSeasonOverride){
+  const id = identity || pickPlayerIdentity([]);
+  return {
+    id:'p'+(PLAYER_SEQ++), name:id.surname, given:id.given, initial:id.initial, pos:pos,
+    number: null, // 背番号はロースター作成時にチーム単位で重複しないよう割り振る
+    power:randInt(1,256), contact:randInt(1,256), speed:randInt(1,256), defense:randInt(1,256), ability:null,
+    age: youngProspect ? randInt(18,23) : Math.round((randInt(19,36)+randInt(19,36))/2),
+    growthType: choice(GROWTH_TYPES),
+    debutSeason: debutSeasonOverride || (DB.currentSeasonNum||1), // 初登場シーズン（歴代成績の在籍表示に使う）
+    stats:emptyStatLine(),      // 今シーズンの成績
+    career:emptyStatLine(),     // 通算成績（シーズンをまたいで積み上がる）
+    awards:{mvp:0, bestNine:0, psMvp:0, rookie:0, goldenGlove:0}, // 受賞歴（シーズンをまたいで積み上がる。リセットされない）
+    seasonsPlayed:0,            // 在籍シーズン数
+    psStats:emptyStatLine(),    // 直近のポストシーズン成績（ポストシーズン開始のたびにリセット）
+    gachaImmunitySeasons: youngProspect ? 2 : 0, // ガチャ加入直後の2年間は再放出の対象から保護
+  };
+}
+// 背番号（00〜99）をチーム内で重複しないように割り振る
+function pickUniformNumber(excludeNumbers){
+  const used = new Set(excludeNumbers||[]);
+  if(used.size>=100) return randInt(0,99); // 万一枠が尽きたら諦めて重複許容
+  let n;
+  do { n = randInt(0,99); } while(used.has(n));
+  return n;
+}
+function formatNumber(n){ return n==null ? '--' : String(n).padStart(2,'0'); }
+// 能力に応じて守備位置を割り振る：俊足巧打→遊撃/中堅/二塁、パワー→一塁/左翼/捕手、残り→三塁/右翼/DH（指名打者制のため投手は打席に立たない）
+function createRoster(){
+  const used = [];
+  let pool = [];
+  const usedNumbers = [];
+  for(let i=0;i<9;i++){
+    const identity = pickPlayerIdentity(used);
+    used.push(identity.surname);
+    const p = createPlayer(null, identity);
+    p.number = pickUniformNumber(usedNumbers);
+    usedNumbers.push(p.number);
+    pool.push(p);
+  }
+  function takeTop(n, scoreFn){
+    pool = pool.slice().sort((a,b)=>scoreFn(b)-scoreFn(a));
+    const picked = pool.slice(0,n);
+    pool = pool.slice(n);
+    return picked;
+  }
+  const speedGroup = takeTop(3, p=>p.speed*1.2+p.contact);
+  const powerGroup = takeTop(3, p=>p.power);
+  const restGroup = pool;
+  const assign = (players, positions)=>players.forEach((p,i)=>{ p.pos = positions[i]; });
+  assign(speedGroup, ['遊','中','二']);
+  assign(powerGroup, ['一','左','捕']);
+  assign(restGroup, ['三','右','指']);
+  const order = POSITIONS;
+  return [...speedGroup,...powerGroup,...restGroup].sort((a,b)=>order.indexOf(a.pos)-order.indexOf(b.pos));
+}
+// 打順を能力から機械的に組む（指名打者制。全員が純粋に打力で並ぶ）
+function buildBattingOrder(roster){
+  let pool = roster.slice();
+  const order = [];
+  function takeBest(scoreFn){
+    pool = pool.slice().sort((a,b)=>scoreFn(b)-scoreFn(a));
+    const p = pool[0];
+    pool = pool.slice(1);
+    return p;
+  }
+  order.push(takeBest(p=>p.speed*2+p.contact));       // 1番：俊足巧打の先頭打者
+  order.push(takeBest(p=>p.contact*2+p.speed));       // 2番：ミート重視のつなぎ役
+  order.push(takeBest(p=>p.contact+p.power));         // 3番：総合力の高い好打者
+  order.push(takeBest(p=>p.power*2+p.contact));       // 4番：最強のパワーヒッター
+  order.push(takeBest(p=>p.power*1.5+p.contact));     // 5番：もう一人の長距離砲
+  order.push(takeBest(p=>p.contact+p.power+p.speed));
+  order.push(takeBest(p=>p.contact+p.power+p.speed));
+  order.push(takeBest(p=>p.contact+p.power+p.speed));
+  order.push(takeBest(p=>p.contact+p.power+p.speed));  // 9番：残った中で最も打力の低い選手
+  assignAbilitiesByBattingOrder(order);
+  return order;
+}
+// 監督：チームの能力に恒常的な補正をかける。数年〜数十年の任期があり、Bクラスが続くと解任される
+const MANAGER_TYPES = [
+  {key:'star', label:'スター采配', desc:'全打者の能力が実質+10%扱いになる', statMult:{power:1.10,contact:1.10,speed:1.10}},
+  {key:'power', label:'一発攻勢', desc:'全打者のパワーが実質+20%扱いになる', statMult:{power:1.20,contact:1,speed:1}},
+  {key:'speedball', label:'機動力野球', desc:'全打者の走力が実質+20%扱いになる', statMult:{power:1,contact:1,speed:1.20}},
+  {key:'contactball', label:'つなぐ野球', desc:'全打者のミートが実質+20%扱いになる', statMult:{power:1,contact:1.20,speed:1}},
+  {key:'realistic', label:'堅実采配', desc:'併殺になりにくい', gidpResist:0.35},
+  {key:'defense', label:'守り勝つ野球', desc:'自チーム守備時、相手の失策が減りにくい／自軍の失策は起きにくい', errorReduction:0.5},
+  {key:'balanced', label:'バランス重視', desc:'全打者の能力が実質+5%扱いになる代わりに、突出はしにくい', statMult:{power:1.05,contact:1.05,speed:1.05}},
+  {key:'aggressive', label:'積極采配', desc:'盗塁を仕掛けやすくなる', stealBoost:1.6},
+  {key:'patient', label:'待球作戦', desc:'全打者が四球を選びやすくなる', walkBoost:1.3},
+  {key:'oldschool', label:'昭和の猛練習', desc:'全打者のパワー・ミートが実質+8%、走力は実質-5%扱いになる', statMult:{power:1.08,contact:1.08,speed:0.95}},
+  {key:'youthful', label:'若手抜擢', desc:'全打者の走力が実質+15%、パワーが実質-5%扱いになる', statMult:{power:0.95,contact:1,speed:1.15}},
+  {key:'unlucky', label:'迷采配', desc:'併殺になりやすい（不運な監督）', gidpResist:-0.15},
+];
+function hireNewManager(team){
+  const type = choice(MANAGER_TYPES);
+  team.manager = {
+    type: type.key, label: type.label, desc: type.desc,
+    hireSeason: DB.currentSeasonNum||1, tenureYears: randInt(3,30),
+    wins:0, losses:0, ties:0, careerGames:0,
+  };
+}
+function createTeams(){
+  return TEAM_DEFS.map((def,idx)=>{
+    const roster = createRoster();
+    const team = {
+      id:'t'+idx, name:def.name, league:def.league, tagline:def.tagline,
+      roster:roster, battingOrder:buildBattingOrder(roster),
+      wins:0, losses:0, ties:0, runsFor:0, runsAgainst:0,
+      consecutiveBClass:0, manager:null, managerHistory:[],
+    };
+    hireNewManager(team);
+    return team;
+  });
+}
+// オフシーズン補強ガチャ：全12球団、それぞれ1名だけを新人にごっそり入れ替える。
+// 自チームは選択式、他チームは「成績が振るわない選手」を自動選定する。
+function performanceScore(p){
+  if(p.stats.ab >= 10) return opsOfStats(p.stats); // 実績があればOPSで判断
+  return (frac(p.power)+frac(p.contact)+frac(p.speed))/3; // 出場が少ない選手は基礎能力で代用（OPSと近い0〜1スケールに正規化）
+}
+// 打順は選手が自分で入れ替えるのではなく、シーズンの成績（実績が無ければ基礎能力）に応じて毎年自動で組み直す
+// 打力上位から、3番→4番→2番→5番→1番→6番→7番→8番→9番の優先順で割り当てる（能力自体は選手に固定のまま、位置だけ入れ替える）
+const BATTING_SLOT_PRIORITY = [3,4,2,5,1,6,7,8,9];
+function reorderBattingOrderByPerformance(t){
+  const ranked = t.roster.slice().sort((a,b)=>performanceScore(b)-performanceScore(a));
+  const newOrder = new Array(9);
+  ranked.forEach((p,i)=>{ newOrder[BATTING_SLOT_PRIORITY[i]-1] = p; });
+  t.battingOrder = newOrder;
+}
+function worstPerformer(t){
+  // ガチャで加入して2年未満の選手は、放出候補となる選手が2人以上いる限り保護する
+  const eligible = t.roster.filter(p=>!(p.gachaImmunitySeasons>0));
+  const pool = eligible.length>=2 ? eligible : t.roster;
+  return pool.slice().sort((a,b)=>performanceScore(a)-performanceScore(b))[0];
+}
+// 他球団のガチャ判断：年齢と成績を加味して「今回は放出する/しない」をいい感じに決める
+// 若くて伸びしろがある選手は温存されやすく、高齢かつ成績不振の選手は放出されやすい
+function shouldReleasePlayer(p){
+  const perf = performanceScore(p); // OPSに近いスケール（目安：.500未満は不振、.800超は好調）
+  let chance = 0.45;
+  if(p.age>=34) chance += 0.35;
+  else if(p.age>=30) chance += 0.15;
+  else if(p.age<=22) chance -= 0.35;
+  else if(p.age<=25) chance -= 0.15;
+  if(perf < 0.45) chance += 0.2;
+  else if(perf > 0.8) chance -= 0.3;
+  chance = Math.max(0.05, Math.min(0.95, chance));
+  return Math.random() < chance;
+}
+// 退団する選手の通算成績をチームのOB名簿に残す（今シーズン分もその場で通算に加算してから記録）
+function retirePlayer(team, player){
+  const totalCareer = emptyStatLine();
+  accumulateStatLine(totalCareer, player.career);
+  accumulateStatLine(totalCareer, player.stats);
+  if(!team.alumni) team.alumni = [];
+  team.alumni.push({
+    name: player.name, pos: player.pos, age: player.age,
+    seasonsPlayed: (player.seasonsPlayed||0) + (player.stats.pa>0 ? 1 : 0),
+    debutSeason: player.debutSeason||1, lastSeason: DB.currentSeasonNum||1,
+    career: totalCareer,
+    awards: Object.assign({mvp:0,bestNine:0,psMvp:0,rookie:0,goldenGlove:0}, player.awards||{}),
+  });
+}
+// mySelectedPlayerId: 通常は選手ID／'__skip__'なら自チームは今回は放出しない／未指定(null)なら全球団を年齢・成績で自動判定
+function gachaSwapAllTeams(myTeamId, mySelectedPlayerId){
+  const results = [];
+  DB.teams.forEach(t=>{
+    const isMine = t.id===myTeamId;
+    let idx = -1, skip = false;
+
+    if(isMine && mySelectedPlayerId==='__skip__'){
+      skip = true;
+    } else if(isMine && mySelectedPlayerId){
+      idx = t.roster.findIndex(p=>p.id===mySelectedPlayerId);
+    } else if(isMine){
+      idx = t.roster.findIndex(p=>p.id===worstPerformer(t).id);
+    } else {
+      const candidate = worstPerformer(t);
+      if(shouldReleasePlayer(candidate)){
+        idx = t.roster.findIndex(p=>p.id===candidate.id);
+      } else {
+        skip = true;
+      }
+    }
+
+    if(skip || idx<0){
+      results.push({team:t, out:null, in:null, slot:null, skipped:true});
+      return;
+    }
+    const outgoing = t.roster[idx];
+    retirePlayer(t, outgoing); // 通算成績をOB(退団選手)としてチームに残しておく
+    const otherNames = t.roster.filter((p,i)=>i!==idx).map(p=>p.name);
+    const identity = pickPlayerIdentity(otherNames);
+    const incoming = createPlayer(outgoing.pos, identity, true, (DB.currentSeasonNum||1)+1); // 新加入は若手寄りの年齢で生成、来シーズンからの在籍扱い
+    incoming.number = pickUniformNumber(t.roster.filter((p,i)=>i!==idx).map(p=>p.number));
+    t.roster[idx] = incoming;
+    const boIdx = t.battingOrder.indexOf(outgoing);
+    if(boIdx>=0){
+      t.battingOrder[boIdx] = incoming;
+      incoming.ability = pickWeightedOrNone(ABILITY_AFFINITY[boIdx] || {});
+    }
+    results.push({team:t, out:outgoing, in:incoming, slot: boIdx>=0 ? boIdx+1 : null, skipped:false});
+  });
+  DB.gachaDoneThisCycle = true;
+  return results;
+}
+function createSchedule(teams){
+  const leagueA=teams.filter(t=>t.league===LEAGUE_CODES[0]);
+  const leagueB=teams.filter(t=>t.league===LEAGUE_CODES[1]);
+  const games=[]; let gid=1;
+  function roundRobinN(list, n){
+    const half = n/2;
+    for(let i=0;i<list.length;i++) for(let j=i+1;j<list.length;j++){
+      for(let k=0;k<half;k++){
+        games.push({id:'g'+(gid++),home:list[i].id,away:list[j].id,played:false,result:null});
+        games.push({id:'g'+(gid++),home:list[j].id,away:list[i].id,played:false,result:null});
+      }
+    }
+  }
+  // NPB風: 同一24回戦(計120試合)＋交流戦4回戦(計24試合)＝1チーム144試合
+  roundRobinN(leagueA, 24);
+  roundRobinN(leagueB, 24);
+  leagueA.forEach(a=>{ leagueB.forEach(b=>{
+    for(let k=0;k<2;k++){
+      games.push({id:'g'+(gid++),home:a.id,away:b.id,played:false,result:null});
+      games.push({id:'g'+(gid++),home:b.id,away:a.id,played:false,result:null});
+    }
+  });});
+  return shuffle(games).map((g,i)=>Object.assign({},g,{order:i+1}));
+}
+
+const P1_WEIGHTS = {hit:0.155, walk:0.085, flyout:0.185, groundout:0.22, k:0.155, otto:0.20};
+const P2_WEIGHTS = {double:0.215, hr:0.115, k:0.185, flyout:0.22, groundout:0.265};
+function weightedChoice(weightMap){
+  const r = Math.random();
+  let acc = 0;
+  const keys = Object.keys(weightMap);
+  for(const key of keys){
+    acc += weightMap[key];
+    if(r < acc) return key;
+  }
+  return keys[keys.length-1];
+}
+function rollPencil1(){ return weightedChoice(P1_WEIGHTS); }
+function rollPencil2(){ return weightedChoice(P2_WEIGHTS); }
+function emptyBases(){ return {first:null,second:null,third:null}; }
+
+function resolveContact(result,batter,bases,mgrGidpResist){
+  mgrGidpResist = mgrGidpResist || 0;
+  const orig=bases;
+  const nb={first:null,second:null,third:null};
+  let scored=[], outsAdded=0, desc='', isSacFly=false, isGidp=false, gidpEscaped=false;
+
+  function forceChain(){
+    const chain=[];
+    if(orig.first) chain.push('first');
+    if(orig.first && orig.second) chain.push('second');
+    if(orig.first && orig.second && orig.third) chain.push('third');
+    return chain;
+  }
+
+  if(result==='hit'){
+    if(orig.third) scored.push(orig.third);
+    if(orig.second) scored.push(orig.second);
+    if(orig.first){
+      if(Math.random()<Math.max(0,frac(batter.speed)-0.4)*0.25) nb.third=orig.first;
+      else nb.second=orig.first;
+    }
+    nb.first=batter;
+    desc=`${batter.name}、単打で出塁！`;
+  } else if(result==='double'){
+    if(orig.third) scored.push(orig.third);
+    if(orig.second) scored.push(orig.second);
+    if(orig.first) scored.push(orig.first);
+    nb.second=batter;
+    desc=`${batter.name}、二塁打！`;
+  } else if(result==='triple'){
+    if(orig.third) scored.push(orig.third);
+    if(orig.second) scored.push(orig.second);
+    if(orig.first) scored.push(orig.first);
+    nb.third=batter;
+    desc=`${batter.name}、三塁打！`;
+  } else if(result==='hr'){
+    if(orig.third) scored.push(orig.third);
+    if(orig.second) scored.push(orig.second);
+    if(orig.first) scored.push(orig.first);
+    scored.push(batter);
+    desc=`${batter.name}、ホームラン！！`;
+  } else if(result==='flyout'){
+    outsAdded=1;
+    nb.first=orig.first; nb.second=orig.second; nb.third=null;
+    if(orig.third){ scored.push(orig.third); isSacFly=true; desc=`${batter.name}、犠牲フライ。三塁走者タッチアップ。`; }
+    else desc=`${batter.name}、外野フライアウト。`;
+  } else if(result==='groundout'){
+    const chain=forceChain();
+    if(chain.length===0){
+      outsAdded=1;
+      nb.first=orig.first; nb.second=orig.second; nb.third=orig.third;
+      desc=`${batter.name}、内野ゴロアウト。`;
+    } else {
+      const targetKey=chain[chain.length-1];
+      const advanceMap={first:'second',second:'third'};
+      nb.first=orig.first; nb.second=orig.second; nb.third=orig.third;
+      nb[targetKey]=null;
+      if(Math.random()<frac(batter.speed)*0.18 + mgrGidpResist) gidpEscaped=true;
+      if(!gidpEscaped && batter.ability==='steady' && Math.random()<0.12) gidpEscaped=true;
+      isGidp=!gidpEscaped;
+      outsAdded=gidpEscaped?1:2;
+      const others=chain.filter(k=>k!==targetKey).reverse();
+      others.forEach(k=>{ const dest=advanceMap[k]; nb[dest]=orig[k]; nb[k]=null; });
+      if(gidpEscaped){ nb.first=batter; desc=`${batter.name}、ゴロ…併殺崩れ！一塁生きる。`; }
+      else desc=`${batter.name}、ゲッツー！`;
+    }
+  } else if(result==='k'){
+    outsAdded=1;
+    nb.first=orig.first; nb.second=orig.second; nb.third=orig.third;
+    desc=`${batter.name}、三振。`;
+  } else if(result==='walk'){
+    nb.first=batter;
+    if(orig.first){
+      nb.second=orig.first;
+      if(orig.second){
+        nb.third=orig.second;
+        if(orig.third) scored.push(orig.third);
+      } else {
+        nb.third=orig.third;
+      }
+    } else {
+      nb.second=orig.second;
+      nb.third=orig.third;
+    }
+    desc=`${batter.name}、四球で出塁。`;
+  } else if(result==='error'){
+    nb.first=batter;
+    if(orig.first){
+      nb.second=orig.first;
+      if(orig.second){
+        nb.third=orig.second;
+        if(orig.third) scored.push(orig.third);
+      } else {
+        nb.third=orig.third;
+      }
+    } else {
+      nb.second=orig.second;
+      nb.third=orig.third;
+    }
+    desc=`${batter.name}、相手の失策で出塁。`;
+  }
+  return {nb,outsAdded,scored,desc,isSacFly,isGidp};
+}
+
+function finalizeAtBat(batter,p1,p2,bases,game){
+  let result=p1, usedPencil2=false;
+  if(p1==='otto'){ usedPencil2=true; result=p2; }
+  let abilityNote=null;
+  let abilityKey=null; // どの"名前つき特殊能力"が結果を覆したか（演出用。基礎ステータスの微調整は含めない）
+
+  // 監督効果：能力の実質倍率を、以降の計算に使う打者オブジェクトへ反映する（記録は元のbatterに対して行う）
+  const realBatter = batter;
+  let mgrGidpResist = 0, mgrErrorMult = 1;
+  if(game){
+    const battingKey = currentBattingKey(game);
+    const fieldingKey = battingKey==='home' ? 'away' : 'home';
+    const battingMgr = game[battingKey] && game[battingKey].manager;
+    const fieldingMgr = game[fieldingKey] && game[fieldingKey].manager;
+    if(battingMgr){
+      if(battingMgr.statMult){
+        const m = battingMgr.statMult;
+        batter = Object.assign({}, batter, {
+          power: Math.max(1, Math.min(256, Math.round(batter.power*(m.power||1)))),
+          contact: Math.max(1, Math.min(256, Math.round(batter.contact*(m.contact||1)))),
+          speed: Math.max(1, Math.min(256, Math.round(batter.speed*(m.speed||1)))),
+        });
+      }
+      if(battingMgr.gidpResist) mgrGidpResist = battingMgr.gidpResist;
+      if(battingMgr.walkBoost && result==='k' && Math.random()<0.15*(battingMgr.walkBoost-1)){
+        result='walk';
+        if(!abilityNote) abilityNote=`${batter.name}、監督の待球方針で四球を選ぶ`;
+      }
+    }
+    if(fieldingMgr && fieldingMgr.errorReduction) mgrErrorMult = fieldingMgr.errorReduction;
+    // 守備力：野手陣の平均守備力が高いほど失策が起きにくい
+    const fieldingTeam = game[fieldingKey];
+    if(fieldingTeam && fieldingTeam.roster && fieldingTeam.roster.length){
+      const avgDef = fieldingTeam.roster.reduce((s,p)=>s+(p.defense||128),0)/fieldingTeam.roster.length;
+      mgrErrorMult *= (1.5 - frac(avgDef)*0.9); // 守備力最低で1.5倍、最高で0.6倍
+    }
+  }
+
+  // 本塁打だと思ったが、パワー不足でフェンスまで届かないことがある（ダイス直後の生の結果にのみ適用。能力で作った本塁打は対象外）
+  if(result==='hr'){
+    const shortChance = Math.max(0,0.5-frac(batter.power))*0.24; // パワーが低いほど届かない確率が上がる（最大12%）
+    if(Math.random()<shortChance){
+      if(Math.random()<0.5){ result='flyout'; abilityNote=`${batter.name}、特大の当たりも本塁打には届かず...`; }
+      else { result='double'; abilityNote=`${batter.name}、フェンス直撃！本塁打かと思ったら二塁打`; }
+    }
+  }
+
+  const isFirstPaThisGame = game && !game.battedThisGame.has(realBatter.id);
+  const isRISP = !!(bases.second || bases.third);
+  const isBasesLoaded = !!(bases.first && bases.second && bases.third);
+  let isTrailing=false, isLuckySeven=false;
+  if(game){
+    const battingKey = currentBattingKey(game);
+    const oppKey = battingKey==='home' ? 'away' : 'home';
+    isTrailing = game.score[battingKey] < game.score[oppKey];
+    isLuckySeven = game.inning===7;
+  }
+  const outResults = ['flyout','groundout','k'];
+
+  // 特殊能力①：一番打者向き（その試合の最初の打席で凡打がヒットに化ける）
+  if(batter.ability==='leadoff' && isFirstPaThisGame && outResults.includes(result) && Math.random()<0.25){
+    result='hit'; abilityNote=`${batter.name}、第一打席の勢いでヒットに！`; abilityKey='leadoff';
+  }
+  // 特殊能力⑤：逆転の一振り（自チームがビハインドの場面で凡打がヒットに化ける）
+  if(!abilityKey && batter.ability==='comeback' && isTrailing && outResults.includes(result) && Math.random()<0.25){
+    result='hit'; abilityNote=`${batter.name}、劣勢をはね返す一打！`; abilityKey='comeback';
+  }
+  // 特殊能力⑥：ラッキーセブン（7回に凡打がヒットに化ける）
+  if(!abilityKey && batter.ability==='luckySeven' && isLuckySeven && outResults.includes(result) && Math.random()<0.25){
+    result='hit'; abilityNote=`${batter.name}、ラッキーセブンで魅せる！`; abilityKey='luckySeven';
+  }
+  // 特殊能力②：勝負強い（得点圏で長打に化ける）
+  if(batter.ability==='clutch' && isRISP){
+    if(result==='hit' && Math.random()<0.30){ result='double'; abilityNote=`${batter.name}、勝負強さを発揮！二塁打に`; abilityKey='clutch'; }
+    else if(result==='double' && Math.random()<0.30){ result='hr'; abilityNote=`${batter.name}、勝負強さを発揮！本塁打に`; abilityKey='clutch'; }
+  }
+  // 特殊能力⑦：満塁男（満塁で長打に化ける。勝負強いより強力）
+  if(batter.ability==='basesLoadedHero' && isBasesLoaded){
+    if(result==='hit' && Math.random()<0.35){ result='double'; abilityNote=`${batter.name}、満塁男の本領発揮！二塁打に`; abilityKey='basesLoadedHero'; }
+    else if(result==='double' && Math.random()<0.35){ result='hr'; abilityNote=`${batter.name}、満塁男の本領発揮！満塁本塁打だ！`; abilityKey='basesLoadedHero'; }
+  }
+  // 特殊能力③：一発長打（状況を問わず二塁打が本塁打に化けやすい）
+  if(batter.ability==='bigSwing' && result==='double' && Math.random()<0.22){
+    result='hr'; abilityNote=`${batter.name}のフルスイングでスタンドへ`; abilityKey='bigSwing';
+  }
+
+  // 基礎ステータス：ミート／パワー（"能力"とは別枠の微調整。1〜256の全域で連続的に差が出るよう設計）
+  if(result==='k'){
+    const chance = Math.max(0, frac(batter.contact)-0.5)*0.50;
+    if(Math.random()<chance){ result='groundout'; if(!abilityNote) abilityNote=`${batter.name}のミートで粘って内野ゴロに`; }
+  } else if(result==='hit'){
+    const chance = Math.max(0, 0.5-frac(batter.contact))*0.40;
+    if(Math.random()<chance){ result='groundout'; if(!abilityNote) abilityNote=`${batter.name}、詰まった当たりでゴロに`; }
+  }
+  if(result==='double'){
+    const upChance = Math.max(0, frac(batter.power)-0.5)*0.50;
+    const downChance = Math.max(0, 0.5-frac(batter.power))*0.40;
+    if(Math.random()<upChance){ result='hr'; if(!abilityNote) abilityNote=`${batter.name}のパワーでスタンドイン`; }
+    else if(Math.random()<downChance){ result='hit'; if(!abilityNote) abilityNote=`${batter.name}、伸びを欠いて単打止まり`; }
+  }
+  // 走力：単打が俊足で二塁打に伸びる／二塁打が俊足で三塁打に伸びる（3塁打はここでのみ発生）
+  if(result==='hit'){
+    const chance = Math.max(0, frac(batter.speed)-0.4)*0.25;
+    if(Math.random()<chance){ result='double'; if(!abilityNote) abilityNote=`${batter.name}、俊足を飛ばして二塁打に`; }
+  } else if(result==='double'){
+    const chance = frac(batter.speed)*0.20;
+    if(Math.random()<chance){ result='triple'; if(!abilityNote) abilityNote=`${batter.name}、俊足で三塁打を陥れる！`; }
+  }
+  // 特殊能力④：堅実（三振を粘ってゴロに変える一助）
+  if(!abilityKey && batter.ability==='steady' && result==='k' && Math.random()<0.12){
+    result='groundout'; abilityNote=`${batter.name}、堅実なバットコントロールでゴロに`; abilityKey='steady';
+  }
+  // 失策：ゴロ・フライのアウトが、まれに相手の失策で出塁に変わる（打者の能力とは無関係。相手監督が守備重視だと起きにくい）
+  if((result==='groundout' || result==='flyout') && Math.random()<0.03*mgrErrorMult){
+    result='error';
+  }
+
+  if(game) game.battedThisGame.add(realBatter.id);
+  const play=resolveContact(result,batter,bases,mgrGidpResist);
+  return Object.assign({},play,{p1,p2,usedPencil2,abilityNote,abilityKey,batter:realBatter,rawResult:result});
+}
+function resolveAtBat(batter,bases,game){
+  const p1=rollPencil1();
+  const p2=(p1==='otto')?rollPencil2():null;
+  return finalizeAtBat(batter,p1,p2,bases,game);
+}
+
+function newGame(homeTeam,awayTeam,scheduleId){
+  return {
+    scheduleId:scheduleId||null, home:homeTeam, away:awayTeam,
+    inning:1, half:'top', outs:0, bases:emptyBases(),
+    score:{home:0,away:0}, orderIdx:{home:0,away:0}, log:[],
+    finished:false, winner:null, pencilStage:'ready', pendingP1:null, lastPlay:null,
+    battedThisGame:new Set(),
+    inningRuns:{home:[],away:[]}, hits:{home:0,away:0}, errors:{home:0,away:0},
+  };
+}
+function currentBattingKey(game){ return game.half==='top'?'away':'home'; }
+function currentBatter(game){ const k=currentBattingKey(game); return game[k].battingOrder[game.orderIdx[k]]; }
+function pushLog(game,text){
+  game.log.push(`${game.inning}回${game.half==='top'?'表':'裏'} ${text}`);
+  if(game.log.length>200) game.log.shift();
+}
+
+function applyPlay(game,play){
+  const battingKey=currentBattingKey(game);
+  const fieldingKey=battingKey==='home'?'away':'home';
+  const b=play.batter;
+  const outsAfter=Math.min(game.outs+play.outsAdded,3);
+  const madeThirdOut=(game.outs+play.outsAdded)>=3;
+  const isForceOrFly=(play.rawResult==='flyout'||play.rawResult==='groundout');
+  const negateRuns=madeThirdOut && isForceOrFly;
+  const runsThisPlay=negateRuns?[]:play.scored;
+  const sacFlyCounts=play.isSacFly && !negateRuns;
+  const target = game.seriesKey ? b.psStats : b.stats; // ポストシーズンの成績はレギュラーシーズンの成績と分離して集計する
+
+  // 掲示板用：この回にまだ記録が無ければ0点で欄を作っておく（試合を通じた安打・失策も加算）
+  if(game.inningRuns){
+    const arr = game.inningRuns[battingKey];
+    while(arr.length < game.inning) arr.push(0);
+  }
+
+  target.pa++;
+  if(!sacFlyCounts && play.rawResult!=='walk') target.ab++; // 失策での出塁も打数には含める（公式記録と同様）
+  if(play.rawResult==='walk') target.bb++;
+  if(['hit','double','triple','hr'].includes(play.rawResult)){
+    target.h++;
+    if(play.rawResult==='double') target.doubles++;
+    if(play.rawResult==='triple') target.triples++;
+    if(play.rawResult==='hr') target.hr++;
+    if(game.hits) game.hits[battingKey]++;
+  }
+  if(play.rawResult==='k') target.k++;
+  if(play.isGidp) target.gidp++;
+  if(sacFlyCounts) target.sac++;
+  if(play.rawResult==='error' && game.errors){
+    game.errors[fieldingKey]++;
+    // 失策を相手チームの守備陣からランダムに1人選んで個人成績に加算（ゴールデングラブ賞の集計に使う）
+    const fieldingTeam = game[fieldingKey];
+    if(fieldingTeam && fieldingTeam.roster && fieldingTeam.roster.length){
+      const fielder = pickWeightedFielderForError(fieldingTeam.roster);
+      (game.seriesKey ? fielder.psStats : fielder.stats).errors++;
+    }
+  }
+  if(runsThisPlay.length){
+    if(play.rawResult!=='error') target.rbi+=runsThisPlay.length; // 失策での生還は打点にしない
+    runsThisPlay.forEach(p=>{ (game.seriesKey ? p.psStats : p.stats).r++; });
+    game.score[battingKey]+=runsThisPlay.length;
+    if(game.inningRuns) game.inningRuns[battingKey][game.inning-1] += runsThisPlay.length;
+  }
+  game.bases=play.nb;
+  game.outs=outsAfter;
+
+  let text=play.desc;
+  if(play.abilityNote) text+=` （${play.abilityNote}）`;
+  if(runsThisPlay.length) text+=` ${runsThisPlay.length}点入る！`;
+  pushLog(game,text);
+  game.lastPlay=Object.assign({},play,{runsThisPlay});
+
+  game.orderIdx[battingKey]=(game.orderIdx[battingKey]+1)%9;
+
+  checkHalfInningEnd(game);
+}
+function checkHalfInningEnd(game){
+  if(game.outs>=3){
+    game.outs=0; game.bases=emptyBases();
+    if(game.half==='top'){
+      game.half='bottom';
+      if(game.inning>=9 && game.score.home>game.score.away){ finishGame(game); return; }
+    } else {
+      game.inning++; game.half='top';
+      if(game.inning-1>=9 && game.score.home!==game.score.away){
+        game.inning--; finishGame(game); return;
+      }
+      if(game.inning>15){ finishGame(game,true); return; }
+    }
+  } else {
+    if(game.half==='bottom' && game.inning>=9 && game.score.home>game.score.away){ finishGame(game); return; }
+  }
+}
+// 盗塁：1塁に足の速い走者がいると、打席の前に盗塁を試みることがある（2塁が空いている場合のみ）
+function attemptSteal(game){
+  if(game.finished) return null;
+  const runner = game.bases.first;
+  if(!runner || game.bases.second) return null;
+  const runnerKey = currentBattingKey(game); // 走者は打者と同じ攻撃側チームに所属
+  const runnerMgr = game[runnerKey] && game[runnerKey].manager;
+  const stealMult = (runnerMgr && runnerMgr.stealBoost) || 1;
+  const attemptChance = Math.max(0, frac(runner.speed)-0.3)*0.22*stealMult;
+  if(Math.random() >= attemptChance) return null;
+  const successChance = 0.55 + frac(runner.speed)*0.35;
+  const success = Math.random() < successChance;
+  const target = game.seriesKey ? runner.psStats : runner.stats;
+  if(success){
+    target.sb = (target.sb||0)+1;
+    game.bases.second = runner;
+    game.bases.first = null;
+    pushLog(game, `${runner.name}、盗塁成功！2塁へ`);
+  } else {
+    target.cs = (target.cs||0)+1;
+    game.bases.first = null;
+    game.outs = Math.min(3, game.outs+1);
+    pushLog(game, `${runner.name}、盗塁失敗…`);
+    checkHalfInningEnd(game);
+  }
+  return {success, runner};
+}
+
+function finishGame(game,forcedTie){
+  game.finished=true;
+  if(forcedTie || game.score.home===game.score.away) game.winner='tie';
+  else game.winner = game.score.home>game.score.away?'home':'away';
+  pushLog(game,`試合終了　${game.away.name} ${game.score.away} - ${game.score.home} ${game.home.name}`);
+
+  if(game.seriesKey){
+    const s = DB.postseason.series[game.seriesKey];
+    if(game.winner!=='tie'){
+      const winnerTeam = game.winner==='home' ? game.home : game.away;
+      if(winnerTeam.id===s.teamA.id) s.winsA++; else s.winsB++;
+      s.games.push({homeId:game.home.id, awayId:game.away.id, scoreHome:game.score.home, scoreAway:game.score.away, winnerId:winnerTeam.id, tie:false});
+      if(s.winsA>=s.winsToClinch) s.winner=s.teamA;
+      else if(s.winsB>=s.winsToClinch) s.winner=s.teamB;
+    } else {
+      s.games.push({homeId:game.home.id, awayId:game.away.id, scoreHome:game.score.home, scoreAway:game.score.away, winnerId:null, tie:true});
+    }
+    return;
+  }
+
+  game.home.runsFor+=game.score.home; game.home.runsAgainst+=game.score.away;
+  game.away.runsFor+=game.score.away; game.away.runsAgainst+=game.score.home;
+  if(game.winner==='home'){ game.home.wins++; game.away.losses++; }
+  else if(game.winner==='away'){ game.away.wins++; game.home.losses++; }
+  else { game.home.ties++; game.away.ties++; }
+  // 監督の通算成績にも同時に加算する（レギュラーシーズンのみ。監督在任中の実績として蓄積）
+  [game.home, game.away].forEach(t=>{ if(t.manager) t.manager.careerGames = (t.manager.careerGames||0)+1; });
+  if(game.winner==='home'){ if(game.home.manager) game.home.manager.wins=(game.home.manager.wins||0)+1; if(game.away.manager) game.away.manager.losses=(game.away.manager.losses||0)+1; }
+  else if(game.winner==='away'){ if(game.away.manager) game.away.manager.wins=(game.away.manager.wins||0)+1; if(game.home.manager) game.home.manager.losses=(game.home.manager.losses||0)+1; }
+  else { if(game.home.manager) game.home.manager.ties=(game.home.manager.ties||0)+1; if(game.away.manager) game.away.manager.ties=(game.away.manager.ties||0)+1; }
+
+  if(game.scheduleId){
+    const g=DB.schedule.find(s=>s.id===game.scheduleId);
+    if(g){ g.played=true; g.result={home:game.score.home,away:game.score.away,winner:game.winner}; }
+  }
+}
+
+function rollStep(game){
+  if(game.finished) return null;
+  if(game.pencilStage==='ready'){
+    attemptSteal(game); // 打席が始まる前に、1塁走者が盗塁を試みることがある（ログに残るだけで、クリックは消費しない）
+    if(game.finished) return {stage:'resolved', play:null, stealOnly:true};
+  }
+  const batter=currentBatter(game);
+  if(game.pencilStage==='ready'){
+    const p1=rollPencil1();
+    game.pendingP1=p1;
+    if(p1==='otto'){
+      game.pencilStage='awaitingPencil2';
+      pushLog(game,`${batter.name} … 1本目「おっと」！ 2本目の鉛筆へ`);
+      return {stage:'otto',p1,batter};
+    } else {
+      const play=finalizeAtBat(batter,p1,null,game.bases,game);
+      applyPlay(game,play);
+      return {stage:'resolved',p1,p2:null,play};
+    }
+  } else {
+    const p1=game.pendingP1;
+    const p2=rollPencil2();
+    game.pencilStage='ready'; game.pendingP1=null;
+    const play=finalizeAtBat(batter,p1,p2,game.bases,game);
+    applyPlay(game,play);
+    return {stage:'resolved',p1,p2,play};
+  }
+}
+function autoSimGame(game){
+  let it=0;
+  while(!game.finished && it<5000){
+    attemptSteal(game);
+    if(game.finished) break;
+    const batter=currentBatter(game);
+    const play=resolveAtBat(batter,game.bases,game);
+    applyPlay(game,play);
+    it++;
+  }
+  return game;
+}
+
+/* =========================================================
+   App state + rendering
+   ========================================================= */
+
+var DB = { teams:[], schedule:[], postseason:null, leagueNames:{E:'イーストリーグ', W:'ウエストリーグ'}, gachaDoneThisCycle:false };
+function leagueName(code){ return (DB.leagueNames && DB.leagueNames[code]) || (code==='H'?'イーストリーグ':'ウエストリーグ'); }
+var UI = { tab:'play', liveGame:null, flash:null, leaderCat:'avg', leaderLeague:'ALL', rosterTeamId:null, rosterStatMode:'season', rolling:false, myTeamId:null, modal:null, gachaResults:null, gachaSelecting:false, gachaMySelection:null, seasonHistory:null, seasonHistoryLoading:false };
+
+function sanitizeText(s, maxLen){
+  return String(s==null?'':s).replace(/[<>&"']/g,'').trim().slice(0, maxLen||30);
+}
+function escapeAttr(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function accumulateStatLine(target, source){
+  Object.keys(target).forEach(k=>{ target[k] += (source[k]||0); });
+}
+function resetPlayerForNewSeason(p){
+  // 通算成績に加算してから、シーズン成績のみリセット。名前・能力・所属はそのまま引き継ぐ
+  accumulateStatLine(p.career, p.stats);
+  p.stats = emptyStatLine();
+  p.psStats = emptyStatLine();
+  p.seasonsPlayed = (p.seasonsPlayed||0) + 1;
+  p.gachaImmunitySeasons = Math.max(0, (p.gachaImmunitySeasons||0) - 1);
+  applyAging(p);
+}
+const RETIREMENT_AGE = 45; // これを超えたら強制引退
+// 45歳を超えた選手を強制引退させ、若手にごっそり入れ替える（ガチャの保護は無関係。年齢だけで判定）
+function forceRetireOldPlayers(t){
+  const retiredList = [];
+  t.roster.forEach((p,idx)=>{
+    if(p.age > RETIREMENT_AGE){
+      retirePlayer(t, p);
+      const otherNames = t.roster.filter((pp,i)=>i!==idx).map(pp=>pp.name);
+      const identity = pickPlayerIdentity(otherNames);
+      const incoming = createPlayer(p.pos, identity, true, (DB.currentSeasonNum||1)+1);
+      incoming.number = pickUniformNumber(t.roster.filter((pp,i)=>i!==idx).map(pp=>pp.number));
+      t.roster[idx] = incoming;
+      const boIdx = t.battingOrder.indexOf(p);
+      if(boIdx>=0){
+        t.battingOrder[boIdx] = incoming;
+        incoming.ability = pickWeightedOrNone(ABILITY_AFFINITY[boIdx] || {});
+      }
+      retiredList.push({team:t, out:p, in:incoming});
+    }
+  });
+  return retiredList;
+}
+// 完全リセット：チーム名・選手も含めて全てを新規生成する（初回起動時のみ使用）
+function hardResetLeague(){
+  PLAYER_SEQ = 1;
+  DB.currentSeasonNum = 1;
+  DB.teams = createTeams();
+  DB.schedule = createSchedule(DB.teams);
+  DB.postseason = null;
+  DB.leagueNames = {E:'イーストリーグ', W:'ウエストリーグ'};
+  DB.gachaDoneThisCycle = false;
+  if(typeof clearHoldTimers==='function') clearHoldTimers();
+  UI.liveGame = null; UI.flash=null; UI.rosterTeamId=null; UI.gachaResults=null; UI.gachaSelecting=false; UI.gachaMySelection=null;
+}
+// シーズン移行：チーム名・選手・編集内容・通算成績はそのまま、今シーズンの成績とスケジュール、ポストシーズンだけを新しくする
+function startNewSeason(){
+  // 今シーズン(リセット前)の順位からAクラス/Bクラスを判定し、監督の進退に反映する
+  const {H:standH, B:standB} = finalizeStandings();
+  const rankMap = {};
+  standH.forEach((t,i)=>rankMap[t.id]=i+1);
+  standB.forEach((t,i)=>rankMap[t.id]=i+1);
+
+  let allRetired = [];
+  const managerChanges = [];
+  DB.teams.forEach(t=>{
+    const rank = rankMap[t.id] || 1;
+    t.consecutiveBClass = (rank>3) ? (t.consecutiveBClass||0)+1 : 0;
+
+    reorderBattingOrderByPerformance(t); // 今シーズンの成績（実績が薄い選手は基礎能力）をもとに、来シーズンの打順を自動で組み直す
+
+    t.wins=0; t.losses=0; t.ties=0; t.runsFor=0; t.runsAgainst=0;
+    t.roster.forEach(p=>resetPlayerForNewSeason(p));
+    allRetired = allRetired.concat(forceRetireOldPlayers(t));
+
+    if(t.manager) t.manager.tenureYears--;
+    const shouldReplace = !t.manager || t.manager.tenureYears<=0 || t.consecutiveBClass>=3;
+    if(shouldReplace){
+      const oldLabel = t.manager ? t.manager.label : null;
+      const reason = (t.manager && t.manager.tenureYears<=0) ? '任期満了' : (t.consecutiveBClass>=3 ? `Bクラス${t.consecutiveBClass}年連続` : '新規就任');
+      if(t.manager){
+        if(!t.managerHistory) t.managerHistory = [];
+        t.managerHistory.push(Object.assign({}, t.manager, {leftSeason: DB.currentSeasonNum||1}));
+      }
+      hireNewManager(t);
+      managerChanges.push({team:t.name, from:oldLabel, to:t.manager.label, reason});
+      t.consecutiveBClass = 0; // 新監督で心機一転
+    }
+  });
+  DB.lastForcedRetirements = allRetired; // シーズン移行直後に一覧表示するため保持
+  DB.lastManagerChanges = managerChanges;
+  DB.currentSeasonNum = (DB.currentSeasonNum||1) + 1;
+  DB.schedule = createSchedule(DB.teams);
+  DB.postseason = null;
+  DB.gachaDoneThisCycle = false;
+  if(typeof clearHoldTimers==='function') clearHoldTimers();
+  UI.liveGame = null; UI.flash=null; UI.rosterTeamId=null; UI.gachaResults=null; UI.gachaSelecting=false; UI.gachaMySelection=null;
+}
+hardResetLeague();
+
+function teamById(id){ return DB.teams.find(t=>t.id===id); }
+function playerById(id){
+  for(const t of DB.teams){
+    const p = t.roster.find(pp=>pp.id===id);
+    if(p) return {player:p, team:t};
+  }
+  return null;
+}
+function fmt3(n){ return isFinite(n) ? n.toFixed(3).replace(/^0\./,'.') : '.---'; }
+function fmt3plain(n){ return isFinite(n) ? n.toFixed(3) : '.000'; } // SLG/OPSは1.000を超えうるので先頭の0を消さない
+function avgOfStats(s){ return s.ab>0 ? s.h/s.ab : 0; }
+function obpOfStats(s){ const d=s.ab+s.bb+s.sac; return d>0 ? (s.h+s.bb)/d : 0; }
+function slgOfStats(s){
+  const singles = s.h - s.doubles - s.triples - s.hr;
+  const total = singles*1 + s.doubles*2 + s.triples*3 + s.hr*4;
+  return s.ab>0 ? total/s.ab : 0;
+}
+function opsOfStats(s){ return obpOfStats(s) + slgOfStats(s); }
+function avgOf(p){ return avgOfStats(p.stats); }
+function obpOf(p){ return obpOfStats(p.stats); }
+function slgOf(p){ return slgOfStats(p.stats); }
+function opsOf(p){ return opsOfStats(p.stats); }
+function winPct(t){ const d=t.wins+t.losses; return d>0 ? t.wins/d : 0; }
+
+function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
+function $(sel){ return document.querySelector(sel); }
+
+function render(){
+  const app = $('#app');
+  app.innerHTML = `
+    <div class="hero">
+      <h1>⬡ 六角鉛筆ベースボール ⬡</h1>
+      <p>鉛筆を転がして戦う、12球団リーグ戦プロトタイプ</p>
+    </div>
+    <div class="tabbar">
+      ${tabBtn('play','▶ 試合')}
+      ${tabBtn('standings','📊 順位表')}
+      ${tabBtn('leaders','🏆 個人成績')}
+      ${tabBtn('roster','📋 選手名鑑')}
+      ${tabBtn('history','🏛 球団史')}
+      ${tabBtn('howto','📖 遊び方')}
+    </div>
+    <div class="section" id="section"></div>
+    <div id="modalRoot">${modalHTML()}</div>
+  `;
+  document.querySelectorAll('.tabbtn').forEach(b=>{
+    b.onclick=()=>{ UI.tab=b.dataset.tab; UI.flash=null; render(); };
+  });
+  renderSection();
+  wireModalEvents();
+}
+
+/* ---------- modal (custom, since alert/confirm/prompt are blocked in sandboxed embeds) ---------- */
+function openEditTeamModal(teamId){
+  const t = teamById(teamId);
+  UI.modal = { type:'editTeam', teamId, name:t.name, tagline:t.tagline };
+  render();
+}
+function openEditLeagueModal(code){
+  UI.modal = { type:'editLeague', code, name: leagueName(code) };
+  render();
+}
+function openEditPlayerModal(playerId){
+  const found = playerById(playerId);
+  if(!found) return;
+  const p = found.player;
+  UI.modal = { type:'editPlayer', playerId, name:p.name, age:p.age, power:p.power, contact:p.contact, speed:p.speed, ability:p.ability||'' };
+  render();
+}
+function openConfirmModal(message, onConfirm){
+  UI.modal = { type:'confirm', message, onConfirm };
+  render();
+}
+// 能力値の編集はA〜Gの評価から選び、保存時にその評価の中央値へ変換する
+const GRADE_MID = {A:238, B:201, C:165, D:128, E:91, F:55, G:18};
+function starSelectHTML(id, current){
+  const currentGrade = gradeOf(current);
+  const opts = ['A','B','C','D','E','F','G'].map(g=>`<option value="${g}" ${g===currentGrade?'selected':''}>${g}</option>`).join('');
+  return `<select id="${id}">${opts}</select>`;
+}
+function abilitySelectHTML(current){
+  const opts = ['<option value="">なし</option>'].concat(
+    ABILITY_KEYS.map(k=>`<option value="${k}" ${k===current?'selected':''}>${ABILITY_INFO[k].label}</option>`)
+  ).join('');
+  return `<select id="editPlayerAbility">${opts}</select>`;
+}
+function modalHTML(){
+  if(!UI.modal) return '';
+  if(UI.modal.type==='confirm'){
+    return `<div class="modal-overlay"><div class="modal-box">
+      <h2>確認</h2>
+      <p>${escapeAttr(UI.modal.message)}</p>
+      <div class="row" style="justify-content:flex-end;margin-top:14px;">
+        <button class="btn secondary small" id="modalCancel">キャンセル</button>
+        <button class="btn small" id="modalOk">OK</button>
+      </div>
+    </div></div>`;
+  }
+  if(UI.modal.type==='editTeam'){
+    return `<div class="modal-overlay"><div class="modal-box">
+      <h2>チームを編集</h2>
+      <label>チーム名</label>
+      <input type="text" id="editTeamName" value="${escapeAttr(UI.modal.name)}" maxlength="20">
+      <label>キャッチコピー</label>
+      <input type="text" id="editTeamTagline" value="${escapeAttr(UI.modal.tagline)}" maxlength="40">
+      <div class="row" style="justify-content:flex-end;margin-top:14px;">
+        <button class="btn secondary small" id="modalCancel">キャンセル</button>
+        <button class="btn small" id="modalSave">保存</button>
+      </div>
+    </div></div>`;
+  }
+  if(UI.modal.type==='editLeague'){
+    return `<div class="modal-overlay"><div class="modal-box">
+      <h2>リーグ名を編集</h2>
+      <label>リーグ名</label>
+      <input type="text" id="editLeagueName" value="${escapeAttr(UI.modal.name)}" maxlength="20">
+      <div class="row" style="justify-content:flex-end;margin-top:14px;">
+        <button class="btn secondary small" id="modalCancel">キャンセル</button>
+        <button class="btn small" id="modalSave">保存</button>
+      </div>
+    </div></div>`;
+  }
+  if(UI.modal.type==='editPlayer'){
+    return `<div class="modal-overlay"><div class="modal-box">
+      <h2>選手を編集</h2>
+      <label>選手名</label>
+      <input type="text" id="editPlayerName" value="${escapeAttr(UI.modal.name)}" maxlength="12">
+      <label>年齢</label>
+      <input type="text" id="editPlayerAge" value="${escapeAttr(String(UI.modal.age))}" maxlength="3">
+      <label>パワー</label>${starSelectHTML('editPlayerPower', UI.modal.power)}
+      <label>ミート</label>${starSelectHTML('editPlayerContact', UI.modal.contact)}
+      <label>走力</label>${starSelectHTML('editPlayerSpeed', UI.modal.speed)}
+      <label>特殊能力</label>${abilitySelectHTML(UI.modal.ability)}
+      <div class="row" style="justify-content:flex-end;margin-top:14px;">
+        <button class="btn secondary small" id="modalCancel">キャンセル</button>
+        <button class="btn small" id="modalSave">保存</button>
+      </div>
+    </div></div>`;
+  }
+  return '';
+}
+function wireModalEvents(){
+  if(!UI.modal) return;
+  const cancel = $('#modalCancel');
+  if(cancel) cancel.onclick = ()=>{ UI.modal=null; render(); };
+
+  if(UI.modal.type==='confirm'){
+    const ok = $('#modalOk');
+    if(ok) ok.onclick = ()=>{
+      const fn = UI.modal.onConfirm;
+      UI.modal = null;
+      if(fn) fn();
+      render();
+    };
+  }
+  if(UI.modal.type==='editTeam'){
+    const save = $('#modalSave');
+    if(save) save.onclick = ()=>{
+      const t = teamById(UI.modal.teamId);
+      const nameEl = $('#editTeamName'), tagEl = $('#editTeamTagline');
+      if(t){
+        const newName = nameEl ? sanitizeText(nameEl.value, 20) : '';
+        const newTag = tagEl ? sanitizeText(tagEl.value, 40) : '';
+        if(newName) t.name = newName;
+        t.tagline = newTag;
+      }
+      UI.modal = null;
+      render();
+    };
+  }
+  if(UI.modal.type==='editLeague'){
+    const save = $('#modalSave');
+    if(save) save.onclick = ()=>{
+      const nameEl = $('#editLeagueName');
+      const newName = nameEl ? sanitizeText(nameEl.value, 20) : '';
+      if(newName){
+        if(!DB.leagueNames) DB.leagueNames = {E:'イーストリーグ', W:'ウエストリーグ'};
+        DB.leagueNames[UI.modal.code] = newName;
+      }
+      UI.modal = null;
+      render();
+    };
+  }
+  if(UI.modal.type==='editPlayer'){
+    const save = $('#modalSave');
+    if(save) save.onclick = ()=>{
+      const found = playerById(UI.modal.playerId);
+      if(found){
+        const p = found.player;
+        const nameEl = $('#editPlayerName');
+        const ageEl = $('#editPlayerAge');
+        const powerEl = $('#editPlayerPower'), contactEl = $('#editPlayerContact'), speedEl = $('#editPlayerSpeed');
+        const abilityEl = $('#editPlayerAbility');
+        const newName = nameEl ? sanitizeText(nameEl.value, 12) : '';
+        if(newName) p.name = newName;
+        if(ageEl){ const a=parseInt(ageEl.value,10); if(a>=15 && a<=50) p.age=a; }
+        if(powerEl && GRADE_MID[powerEl.value]) p.power = GRADE_MID[powerEl.value];
+        if(contactEl && GRADE_MID[contactEl.value]) p.contact = GRADE_MID[contactEl.value];
+        if(speedEl && GRADE_MID[speedEl.value]) p.speed = GRADE_MID[speedEl.value];
+        if(abilityEl) p.ability = abilityEl.value ? abilityEl.value : null;
+      }
+      UI.modal = null;
+      render();
+    };
+  }
+}
+function tabBtn(key,label){
+  return `<button class="tabbtn ${UI.tab===key?'active':''}" data-tab="${key}">${label}</button>`;
+}
+
+function renderSection(){
+  const sec = $('#section');
+  if(UI.tab==='play'){
+    sec.innerHTML = (UI.liveGame ? playScreenHTML(UI.liveGame) : scheduleHTML());
+    wirePlayEvents();
+  } else if(UI.tab==='standings'){
+    sec.innerHTML = standingsHTML();
+    wireStandingsEvents();
+  } else if(UI.tab==='leaders'){
+    sec.innerHTML = leadersHTML();
+    wireLeaderEvents();
+  } else if(UI.tab==='roster'){
+    sec.innerHTML = UI.rosterTeamId ? rosterDetailHTML(UI.rosterTeamId) : rosterListHTML();
+    wireRosterEvents();
+  } else if(UI.tab==='history'){
+    sec.innerHTML = historyHTML();
+  } else if(UI.tab==='howto'){
+    sec.innerHTML = renderHowTo();
+  }
+}
+
+/* ---------- how-to ---------- */
+function renderHowTo(){
+  return `
+  <div class="card">
+    <h2>遊び方・ルール</h2>
+    <div class="rules">
+      2本の六角鉛筆を転がして1打席ずつ結果を決める、簡易サイコロ野球です（出目の確率は現実のプロ野球に近づくよう調整済み）。<br>
+      <b>1本目</b>：ヒット・四球・フライ（3塁走者いれば犠飛）・ゴロ（走者いればゲッツー）・三振・<b>おっと</b><br>
+      <b>2本目</b>（おっと時のみ）：2ベース・HR・三振・フライ（同上）・ゴロ（同上）<br>
+      主なハウスルール：ゲッツーは"詰まっている走者"の先頭が封殺（1,2塁→2塁走者、1,3塁→1塁走者、満塁→3塁走者）／
+      犠飛は3塁走者のみ生還／2ベース・3塁打は走者全員生還／四球は押し出しのみ進塁／その打席がイニング最終アウトの場合は得点なし。<br>
+      さらに、単打が俊足で二塁打に化けたり、二塁打が俊足で三塁打になったり、逆にパワー不足で本塁打がフェンス直撃の二塁打止まりになることもあります。ゴロ・フライのアウトは、まれに相手の失策（E）で出塁に変わることもあります。<br>
+      各打者には <b>パワー・ミート・走力</b>（★1〜5）に加え、一部の選手だけが持つ<b>特殊能力</b>（一番打者向き／勝負強い／一発長打／堅実／逆転の一振り／ラッキーセブン／満塁男）があります。能力が結果を覆すと画面に演出が出ます。守備位置と打順・能力の傾向は連動して自動的に組まれます（1〜2番は一番打者向き・堅実、3〜5番は勝負強い・一発長打・満塁男が出やすいなど）。<br>
+      144試合のレギュラーシーズン終了後、上位3チームでクライマックスシリーズ→日本シリーズに進出します（4位以下は来年に期待）。同率首位の順位決定はイーストリーグとウエストリーグで規則が異なります（詳しくは「順位表」タブに記載）。シーズン終了後に「シーズンを新しくする」と、そのシーズンの成績が「球団史」タブに記録されます（ポストシーズン未完了の場合は自動で最後まで消化されます）。
+    </div>
+  </div>`;
+}
+
+/* ---------- schedule / play tab ---------- */
+function teamPickerHTML(){
+  const cards = DB.teams.map(t=>`
+    <div class="team-card" data-myteam="${t.id}">
+      <div class="lg">${leagueName(t.league)}</div>
+      <div class="tn">${t.name}</div>
+      <div class="tg">${t.tagline}</div>
+    </div>`).join('');
+  return `<div class="card">
+    <h2>マイチームを選んでください</h2>
+    <div class="muted" style="margin-bottom:8px;">選んだチームの試合だけ、自分で鉛筆を転がしてプレイできます。他チーム同士の試合は自動シミュレートで消化します。</div>
+    <div class="team-grid">${cards}</div>
+  </div>`;
+}
+
+function scheduleHTML(){
+  if(!UI.myTeamId) return teamPickerHTML();
+
+  const myTeam = teamById(UI.myTeamId);
+  const isMine = g => g.home===UI.myTeamId || g.away===UI.myTeamId;
+  const unplayed = DB.schedule.filter(g=>!g.played && isMine(g)).sort((a,b)=>a.order-b.order);
+  const played = DB.schedule.filter(g=>g.played && isMine(g));
+  const otherUnplayedCount = DB.schedule.filter(g=>!g.played && !isMine(g)).length;
+  const myUnplayedCount = DB.schedule.filter(g=>!g.played && isMine(g)).length;
+
+  let flashHtml = UI.flash ? `<div class="flash">${UI.flash}</div>` : '';
+
+  let rows = unplayed.slice(0,8).map(g=>{
+    const h=teamById(g.home), a=teamById(g.away);
+    return `<div class="game-row">
+      <div class="vs">第${g.order}回戦　<b>${a.name}</b> @ <b>${h.name}</b></div>
+      <div class="actions">
+        <button class="btn small" data-play="${g.id}">観る</button>
+        <button class="btn small secondary" data-sim="${g.id}">自動</button>
+      </div>
+    </div>`;
+  }).join('');
+  if(unplayed.length>8) rows += `<div class="muted" style="text-align:center;">ほか ${unplayed.length-8} 試合…</div>`;
+
+  let recentRows = played.slice(-8).reverse().map(g=>{
+    const h=teamById(g.home), a=teamById(g.away);
+    return `<div class="game-row">
+      <div class="vs">${a.name} ${g.result.away} - ${g.result.home} ${h.name}</div>
+      <span class="pill">${g.result.winner==='tie'?'引分':(g.result.winner==='home'?h.name+'勝ち':a.name+'勝ち')}</span>
+    </div>`;
+  }).join('');
+
+  let gachaHtml = '';
+  if(regularSeasonComplete()){
+    if(UI.gachaResults){
+      const rows = UI.gachaResults.map(r=>{
+        if(r.skipped){
+          return `<div class="gacha-row">
+            <div class="gacha-team">${r.team.name}${UI.myTeamId===r.team.id?'（自チーム）':''}</div>
+            <div class="muted">今回は放出なし</div>
+          </div>`;
+        }
+        return `<div class="gacha-row">
+          <div class="gacha-team">${r.team.name}${r.slot?`　${r.slot}番`:''}</div>
+          <div class="gacha-swap">
+            <span class="gacha-out">${r.out.name}(${r.out.pos}・${r.out.age}歳)</span>
+            <span class="gacha-arrow">→</span>
+            <span class="gacha-in">★NEW★ ${r.in.name}(${r.in.pos}・${r.in.age}歳)${r.in.ability?`<span class="pill" style="margin-left:4px;">${ABILITY_INFO[r.in.ability].label}</span>`:''}</span>
+          </div>
+          <div class="muted" style="font-size:10.5px;">パワー${gradeBadge(r.in.power)}　ミート${gradeBadge(r.in.contact)}　走力${gradeBadge(r.in.speed)}</div>
+        </div>`;
+      }).join('');
+      const swappedCount = UI.gachaResults.filter(r=>!r.skipped).length;
+      gachaHtml = `<div class="card">
+        <h2>オフシーズン補強ガチャ結果</h2>
+        <div class="muted" style="margin-bottom:8px;">12球団中${swappedCount}球団が新人と入れ替わりました（年齢・成績を見て見送った球団もあります）。</div>
+        ${rows}
+        <div class="row" style="margin-top:10px;">
+          <button class="btn secondary small" id="closeGachaBtn">閉じる</button>
+        </div>
+      </div>`;
+    } else if(UI.gachaSelecting){
+      const myTeam = teamById(UI.myTeamId);
+      // 選択済みIDが現在のロースターに存在しない場合（チーム変更やその間の入れ替わりなど）は安全にデフォルトへ戻す
+      if(myTeam && UI.gachaMySelection!=='__skip__' && !myTeam.roster.some(p=>p.id===UI.gachaMySelection)){
+        UI.gachaMySelection = worstPerformer(myTeam).id;
+      }
+      const eligibleForMe = myTeam.roster.filter(p=>!(p.gachaImmunitySeasons>0));
+      const selectablePlayers = eligibleForMe.length>=2 ? eligibleForMe : myTeam.roster;
+      const protectedCount = myTeam.roster.length - selectablePlayers.length;
+      const opts = selectablePlayers.map(p=>`<option value="${p.id}" ${UI.gachaMySelection===p.id?'selected':''}>${p.pos} ${p.name}・${p.age}歳（P${gradeOf(p.power)}/C${gradeOf(p.contact)}/S${gradeOf(p.speed)}／${p.stats.ab>=10?'OPS'+fmt3plain(opsOf(p)):'出場少'}）</option>`).join('')
+        + `<option value="__skip__" ${UI.gachaMySelection==='__skip__'?'selected':''}>――今回は誰も放出しない――</option>`;
+      gachaHtml = `<div class="card">
+        <h2>放出する選手を選択（${myTeam.name}）</h2>
+        <div class="muted" style="margin-bottom:8px;">自チームだけ、入れ替える1名を選んでください（初期値は成績が振るわない選手）。見送ることもできます。他11球団は年齢・成績を見て自動で判断します。入ってくる新人はランダムです。${protectedCount>0?`　※加入2年未満の選手${protectedCount}名は放出候補から保護されています。`:''}</div>
+        <select data-gachaselect="${myTeam.id}">${opts}</select>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn secondary small" id="cancelGachaBtn">キャンセル</button>
+          <button class="btn small" id="confirmGachaBtn">この内容でガチャを引く</button>
+        </div>
+      </div>`;
+    } else {
+      gachaHtml = `<div class="card">
+        <h2>オフシーズン補強ガチャ</h2>
+        <div class="muted" style="margin-bottom:8px;">シーズン終了後、全12球団それぞれ1名を選んで新人と入れ替えます（新人はランダム）。元に戻すことはできません。</div>
+        <button class="btn" id="gachaBtn">放出する選手を選ぶ</button>
+      </div>`;
+    }
+  }
+
+  return `
+  ${flashHtml}
+  <div class="card">
+    <div class="row between">
+      <h2 style="margin:0;">マイチーム: ${myTeam.name}</h2>
+      <button class="btn secondary small" id="changeTeamBtn">変更</button>
+    </div>
+    <div class="muted" style="margin-top:4px;">${myTeam.wins}勝 ${myTeam.losses}敗 ${myTeam.ties}分　（${played.length}/${played.length+unplayed.length} 試合消化）</div>
+    <div class="row" style="margin-top:8px;">
+      <button class="btn secondary" id="simOthersBtn">一括自動シミュレート（自チーム以外、残り${otherUnplayedCount}）</button>
+      <button class="btn secondary" id="simMineBtn">一括自動シミュレート（自チーム、残り${myUnplayedCount}）</button>
+      <button class="btn secondary" id="simPostseasonBtn">一括自動シミュレート（ポストシーズン）</button>
+      <button class="btn secondary" id="newSeasonBtn">新しいシーズンを始める</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>次の試合</h2>
+    ${rows || '<div class="muted">未消化の試合はありません。お疲れさまでした。</div>'}
+  </div>
+  ${regularSeasonComplete() ? postseasonSectionHTML() : ''}
+  ${gachaHtml}
+  `;
+}
+
+function linescoreHTML(game){
+  const maxInning = Math.max(9, game.inning, (game.inningRuns.home||[]).length, (game.inningRuns.away||[]).length);
+  const awayArr = game.inningRuns.away||[], homeArr = game.inningRuns.home||[];
+  function cell(arr, i, otherLen){
+    if(i < arr.length) return arr[i];
+    // ホームが裏を戦わずに終わった回（サヨナラ・逃げ切り）は「X」で表す
+    if(game.finished && i < otherLen) return 'X';
+    return '';
+  }
+  let head = '<th class="namehead"></th>';
+  for(let i=0;i<maxInning;i++) head += `<th>${i+1}</th>`;
+  head += '<th>R</th><th>H</th><th>E</th>';
+  const awayRow = `<tr><td class="name">${game.away.name}</td>` +
+    Array.from({length:maxInning},(_,i)=>`<td>${cell(awayArr,i,homeArr.length)}</td>`).join('') +
+    `<td class="hl">${game.score.away}</td><td>${game.hits.away}</td><td>${game.errors.away}</td></tr>`;
+  const homeRow = `<tr><td class="name">${game.home.name}</td>` +
+    Array.from({length:maxInning},(_,i)=>`<td>${cell(homeArr,i,awayArr.length)}</td>`).join('') +
+    `<td class="hl">${game.score.home}</td><td>${game.hits.home}</td><td>${game.errors.home}</td></tr>`;
+  return `<table class="linescore">
+    <thead><tr>${head}</tr></thead>
+    <tbody>${awayRow}${homeRow}</tbody>
+  </table>`;
+}
+function playScreenHTML(game){
+  const battingKey = currentBattingKey(game);
+  const batter = !game.finished ? currentBatter(game) : null;
+  const outsDots = [0,1].map(i=>`<span class="dot ${i<game.outs?'on':''}"></span>`).join('');
+  const bases = game.bases;
+
+  const runnerText = `1塁: <b>${bases.first?bases.first.name:'-'}</b>　2塁: <b>${bases.second?bases.second.name:'-'}</b>　3塁: <b>${bases.third?bases.third.name:'-'}</b>`;
+
+  const pencil2Active = game.pencilStage==='awaitingPencil2';
+  const p1Text = game.pendingP1 ? FACE_LABEL[game.pendingP1] : (game.lastPlay ? FACE_LABEL[game.lastPlay.p1] : '?');
+  const p2Text = (!pencil2Active && game.lastPlay && game.lastPlay.p2) ? FACE_LABEL[game.lastPlay.p2] : '?';
+
+  let btnLabel = pencil2Active ? '② もう一本の鉛筆を転がす！' : '① 鉛筆を転がす';
+  let noteText = pencil2Active ? '「おっと」が出た！もう一本転がそう' : '';
+
+  const abilityFlashHtml = (!pencil2Active && game.lastPlay && game.lastPlay.abilityKey)
+    ? `<div class="ability-flash">⚡ ${ABILITY_INFO[game.lastPlay.abilityKey].label}、発動！
+        <div class="ability-flash-note">${game.lastPlay.abilityNote}</div>
+      </div>`
+    : '';
+
+  const logHtml = game.log.slice(-12).map(l=>`<div>${l}</div>`).join('');
+
+  let finishHtml = '';
+  if(game.finished){
+    const w = game.winner==='tie' ? '引き分け' : (game.winner==='home'?game.home.name:game.away.name)+' の勝利！';
+    finishHtml = `
+      ${abilityFlashHtml}
+      <div class="finish-banner">
+      <div>試合終了</div>
+      <div class="score">${game.away.name} ${game.score.away} - ${game.score.home} ${game.home.name}</div>
+      <div class="muted">${w}</div>
+      <div class="row" style="justify-content:center;margin-top:10px;">
+        <button class="btn" id="backToScheduleBtn">${game.seriesKey?'順位表・シリーズに戻る':'スケジュールに戻る'}</button>
+      </div>
+    </div>`;
+  }
+
+  return `
+  <div class="card">
+    <div class="matchup"><b>${game.away.name}</b> @ <b>${game.home.name}</b></div>
+
+    <div class="scoreboard">
+      <div class="sb-team"><div class="nm">${game.away.name}</div><div class="sc">${game.score.away}</div></div>
+      <div class="sb-mid">
+        <div class="sb-inning">${game.inning}回${game.half==='top'?'表 ▲':'裏 ▼'}</div>
+        <div class="sb-outs">${outsDots} <span class="muted" style="font-size:10px;">OUT</span></div>
+      </div>
+      <div class="sb-team"><div class="nm">${game.home.name}</div><div class="sc">${game.score.home}</div></div>
+    </div>
+
+    ${linescoreHTML(game)}
+
+    <div class="diamond-wrap">
+      <div class="diamond">
+        <div class="base" id="b-second"></div>
+        <div class="base" id="b-first"></div>
+        <div class="base" id="b-third"></div>
+        <div id="b-home"></div>
+      </div>
+    </div>
+    <div class="runners-text">${runnerText}</div>
+
+    ${batter ? `
+    <div class="batter-card">
+      <div class="pos">${batter.pos}</div>
+      <div class="info">
+        <div class="nm">${battingKey==='home'?game.home.name:game.away.name} ・ ${batter.name}</div>
+        <div class="stats">
+          <span>パワー</span>${gradeBadge(batter.power)}
+          <span style="margin-left:6px;">ミート</span>${gradeBadge(batter.contact)}
+          <span style="margin-left:6px;">走力</span>${gradeBadge(batter.speed)}
+        </div>
+      </div>
+    </div>` : ''}
+
+    ${!game.finished ? `
+    <div class="dice-area">
+      <div>
+        <div class="hex" id="hex1">${p1Text}</div>
+        <div class="hex-label">1本目</div>
+      </div>
+      <div>
+        <div class="hex ${pencil2Active?'':'dim'}" id="hex2">${p2Text}</div>
+        <div class="hex-label">2本目</div>
+      </div>
+    </div>
+    <div class="play-note" id="playNote">${noteText}</div>
+    ${abilityFlashHtml}
+    <div class="roll-btn-wrap">
+      <button class="btn roll-btn" id="rollBtn" ${UI.rolling?'disabled':''}>${btnLabel}</button>
+      <div class="hold-hint">長押しで早送り</div>
+    </div>
+    ` : finishHtml}
+
+    <div class="log-box" id="logBox">${logHtml}</div>
+  </div>
+  `;
+}
+
+function updateDiamondClasses(game){
+  const b = game.bases;
+  const f=$('#b-first'), s=$('#b-second'), t=$('#b-third');
+  if(f) f.classList.toggle('occ', !!b.first);
+  if(s) s.classList.toggle('occ', !!b.second);
+  if(t) t.classList.toggle('occ', !!b.third);
+}
+
+function wirePlayEvents(){
+  updateDiamondClasses(UI.liveGame || {bases:emptyBases()});
+
+  const startBtn = $('#startPostseasonBtn');
+  if(startBtn) startBtn.onclick = ()=>{ startPostseason(); render(); };
+  const finishPsBtn = $('#finishPostseasonBtn');
+  if(finishPsBtn) finishPsBtn.onclick = ()=>{ autoCompletePostseason(); UI.flash='ポストシーズンを自動で消化しました。'; render(); };
+  document.querySelectorAll('[data-psplay]').forEach(b=>{
+    b.onclick = ()=>{
+      const key=b.dataset.psplay;
+      const s=DB.postseason.series[key];
+      const game=newGame(s.teamA, s.teamB, null);
+      game.seriesKey=key;
+      UI.liveGame=game;
+      render();
+    };
+  });
+  document.querySelectorAll('[data-pssim]').forEach(b=>{
+    b.onclick = ()=>{
+      const key=b.dataset.pssim;
+      const s=DB.postseason.series[key];
+      const game=newGame(s.teamA, s.teamB, null);
+      game.seriesKey=key;
+      autoSimGame(game);
+      render();
+    };
+  });
+
+  const simOthersBtn = $('#simOthersBtn');
+  if(simOthersBtn) simOthersBtn.onclick = ()=>{
+    const others = DB.schedule.filter(g=>!g.played && g.home!==UI.myTeamId && g.away!==UI.myTeamId);
+    others.forEach(g=>{
+      const h=teamById(g.home), a=teamById(g.away);
+      const game = newGame(h,a,g.id);
+      autoSimGame(game);
+    });
+    UI.flash = `自チーム以外の${others.length}試合を消化しました。`;
+    render();
+  };
+  const simMineBtn = $('#simMineBtn');
+  if(simMineBtn) simMineBtn.onclick = ()=>{
+    const mine = DB.schedule.filter(g=>!g.played && (g.home===UI.myTeamId || g.away===UI.myTeamId));
+    mine.forEach(g=>{
+      const h=teamById(g.home), a=teamById(g.away);
+      const game = newGame(h,a,g.id);
+      autoSimGame(game);
+    });
+    UI.flash = `自チームの${mine.length}試合を消化しました。`;
+    render();
+  };
+  const simPostseasonBtn = $('#simPostseasonBtn');
+  if(simPostseasonBtn) simPostseasonBtn.onclick = ()=>{
+    if(!regularSeasonComplete()){
+      UI.flash = 'レギュラーシーズンが終わってから実行できます。';
+      render();
+      return;
+    }
+    autoCompletePostseason();
+    UI.flash = 'ポストシーズンを自動で消化しました。';
+    render();
+  };
+  const gachaBtn = $('#gachaBtn');
+  if(gachaBtn) gachaBtn.onclick = ()=>{
+    UI.gachaSelecting = true;
+    const myTeam = teamById(UI.myTeamId);
+    UI.gachaMySelection = worstPerformer(myTeam).id;
+    render();
+  };
+  document.querySelectorAll('[data-gachaselect]').forEach(sel=>{
+    sel.onchange = ()=>{ UI.gachaMySelection = sel.value; };
+  });
+  const cancelGachaBtn = $('#cancelGachaBtn');
+  if(cancelGachaBtn) cancelGachaBtn.onclick = ()=>{ UI.gachaSelecting=false; UI.gachaMySelection=null; render(); };
+  const confirmGachaBtn = $('#confirmGachaBtn');
+  if(confirmGachaBtn) confirmGachaBtn.onclick = ()=>{
+    UI.gachaResults = gachaSwapAllTeams(UI.myTeamId, UI.gachaMySelection);
+    UI.gachaSelecting = false;
+    UI.gachaMySelection = null;
+    render();
+  };
+  const closeGachaBtn = $('#closeGachaBtn');
+  if(closeGachaBtn) closeGachaBtn.onclick = ()=>{ UI.gachaResults=null; render(); };
+  const changeTeamBtn = $('#changeTeamBtn');
+  if(changeTeamBtn) changeTeamBtn.onclick = ()=>{ UI.myTeamId=null; UI.gachaSelecting=false; UI.gachaMySelection=null; UI.gachaResults=null; render(); };
+  document.querySelectorAll('[data-myteam]').forEach(c=>{
+    c.onclick = ()=>{ UI.myTeamId = c.dataset.myteam; render(); };
+  });
+  const newSeasonBtn = $('#newSeasonBtn');
+  if(newSeasonBtn) newSeasonBtn.onclick = ()=>{
+    const psUnfinished = regularSeasonComplete() && (!DB.postseason || !DB.postseason.champion);
+    const gachaSkipped = regularSeasonComplete() && !DB.gachaDoneThisCycle;
+    let noteParts = [];
+    if(psUnfinished) noteParts.push('ポストシーズンが未完了のため、残りは自動で最後まで消化されます。');
+    if(gachaSkipped) noteParts.push('オフシーズン補強ガチャがまだのため、自チームも含めて全球団、年齢・成績を見て自動で判断されます。');
+    const msg = regularSeasonComplete()
+      ? `今シーズンの最終成績を「球団史」に記録してから、今シーズンの成績・スケジュール・ポストシーズンをリセットして新シーズンを始めます（チーム名・選手・編集内容はそのまま引き継がれます）。${noteParts.join('')}よろしいですか？`
+      : '現在の成績・スケジュール・ポストシーズンをリセットして新シーズンを始めます（このシーズンはレギュラーシーズン未消化のため記録には残りません。チーム名・選手はそのまま引き継がれます）。よろしいですか？';
+    openConfirmModal(msg, ()=>{
+      if(regularSeasonComplete()){
+        if(!DB.postseason || !DB.postseason.champion){
+          autoCompletePostseason();
+        }
+        if(!DB.gachaDoneThisCycle){
+          gachaSwapAllTeams(null, null); // 自チームも含め、全球団を年齢・成績で自動判定
+        }
+        UI.flash = '前シーズンの成績を球団史に記録しています…';
+        render();
+        archiveCurrentSeason().then(()=>{
+          UI.seasonHistory = null; // 次回「球団史」タブを開いたときに再読込させる
+          startNewSeason();
+          const retiredCount = (DB.lastForcedRetirements||[]).length;
+          const changes = DB.lastManagerChanges||[];
+          const myChange = UI.myTeamId ? changes.find(c=>c.team===teamById(UI.myTeamId).name) : null;
+          let managerNote = '';
+          if(changes.length>0){
+            if(myChange) managerNote = `　⚾自チームの監督が交代：${myChange.from||'新規'}→${myChange.to}（${myChange.reason}）。他${changes.length-1}球団でも監督交代あり。`;
+            else managerNote = `　${changes.length}球団で監督交代がありました。`;
+          }
+          UI.flash = `前シーズンの成績を球団史に記録し、新シーズンを開始しました。${retiredCount>0?`（${RETIREMENT_AGE}歳定年で${retiredCount}名が引退し、新人と入れ替わりました）`:''}${managerNote}`;
+          render();
+        }).catch((e)=>{
+          const rec = e && e.record;
+          startNewSeason();
+          const detail = (e && e.message) ? e.message : String(e);
+          if(rec){
+            const summary = `MVP: ${rec.mvp?rec.mvp.name+'('+rec.mvp.team+')':'-'}／優勝: ${rec.champion||'-'}`;
+            UI.flash = `保存に失敗しました（新シーズンは開始しています）。この端末に記録は残っていませんが、直前の結果 → ${summary}。詳細: ${detail}`;
+          } else {
+            UI.flash = `球団史への記録に失敗しました（新シーズンは開始しています）。詳細: ${detail}`;
+          }
+          render();
+        });
+      } else {
+        startNewSeason();
+      }
+    });
+  };
+  document.querySelectorAll('[data-play]').forEach(b=>{
+    b.onclick = ()=>{
+      const g = DB.schedule.find(s=>s.id===b.dataset.play);
+      UI.liveGame = newGame(teamById(g.home), teamById(g.away), g.id);
+      render();
+    };
+  });
+  document.querySelectorAll('[data-sim]').forEach(b=>{
+    b.onclick = ()=>{
+      const g = DB.schedule.find(s=>s.id===b.dataset.sim);
+      const h=teamById(g.home), a=teamById(g.away);
+      const game = newGame(h,a,g.id);
+      autoSimGame(game);
+      UI.flash = `${a.name} ${game.score.away} - ${game.score.home} ${h.name}`;
+      render();
+    };
+  });
+
+  const rollBtn = $('#rollBtn');
+  if(rollBtn){
+    rollBtn.onmousedown = ()=>pressRoll();
+    rollBtn.onmouseup = ()=>releaseRoll();
+    rollBtn.onmouseleave = ()=>releaseRoll();
+    rollBtn.ontouchstart = (e)=>{ if(e&&e.preventDefault) e.preventDefault(); pressRoll(); };
+    rollBtn.ontouchend = ()=>releaseRoll();
+    rollBtn.ontouchcancel = ()=>releaseRoll();
+  }
+
+  const backBtn = $('#backToScheduleBtn');
+  if(backBtn) backBtn.onclick = ()=>{
+    releaseRoll();
+    const wasPostseason = UI.liveGame && UI.liveGame.seriesKey;
+    UI.liveGame=null;
+    if(wasPostseason) UI.tab='standings';
+    render();
+  };
+}
+
+var holdStartTimer = null;
+var holdRepeatTimer = null;
+const HOLD_THRESHOLD_MS = 350; // このくらい押し続けたら早送りモードに入る
+const HOLD_REPEAT_MS = 90;     // 早送り中、1打席を処理する間隔
+
+function clearHoldTimers(){
+  if(holdStartTimer){ clearTimeout(holdStartTimer); holdStartTimer=null; }
+  if(holdRepeatTimer){ clearInterval(holdRepeatTimer); holdRepeatTimer=null; }
+}
+function pressRoll(){
+  if(UI.rolling || !UI.liveGame || UI.liveGame.finished) return;
+  const gameRef = UI.liveGame;
+  doRoll(); // 通常の1回分は、これまで通りアニメーション付きで転がす
+  clearHoldTimers();
+  holdStartTimer = setTimeout(()=>{
+    holdRepeatTimer = setInterval(()=>{
+      if(UI.tab!=='play' || UI.liveGame!==gameRef || UI.liveGame.finished){ clearHoldTimers(); return; }
+      // 早送り中はアニメーションを省略し、1打席ずつ素早く処理して都度再描画する
+      rollStep(UI.liveGame);
+      render();
+    }, HOLD_REPEAT_MS);
+  }, HOLD_THRESHOLD_MS);
+}
+function releaseRoll(){
+  clearHoldTimers();
+}
+
+function doRoll(){
+  if(UI.rolling || !UI.liveGame || UI.liveGame.finished) return;
+  const game = UI.liveGame;
+  const wasAwaiting = game.pencilStage==='awaitingPencil2';
+  UI.rolling = true;
+  const rollBtn = $('#rollBtn'); if(rollBtn) rollBtn.disabled = true;
+
+  const res = rollStep(game); // engine resolves synchronously
+
+  const hexId = wasAwaiting ? '#hex2' : '#hex1';
+  const hex = $(hexId);
+  const faces = wasAwaiting ? P2_FACES : P1_FACES;
+  if(hex) hex.classList.add('spin');
+
+  // 初期仕様：一定間隔でフリップして、すぐ結果を見せる（約0.5秒）
+  let spins = 0;
+  const spinTimer = setInterval(()=>{
+    if(hex) hex.textContent = FACE_LABEL[choice(faces)];
+    spins++;
+    if(spins>7){
+      clearInterval(spinTimer);
+      if(hex) hex.textContent = FACE_LABEL[wasAwaiting ? res.p2 : res.p1];
+      UI.rolling = false;
+      render();
+    }
+  }, 60);
+}
+
+/* ---------- standings tab ---------- */
+function headToHeadPct(teamA, teamB){
+  const games = DB.schedule.filter(g=>g.played && (
+    (g.home===teamA.id && g.away===teamB.id) || (g.home===teamB.id && g.away===teamA.id)
+  ));
+  let winsA=0, decisive=0;
+  games.forEach(g=>{
+    if(g.result.winner==='tie') return;
+    decisive++;
+    const winnerId = g.result.winner==='home' ? g.home : g.away;
+    if(winnerId===teamA.id) winsA++;
+  });
+  return decisive>0 ? winsA/decisive : 0.5;
+}
+// 同率首位の決め方はセ・パで違う、という実際のNPBルールを簡易再現：
+// イーストリーグ＝セ・リーグ方式：勝率→勝利数→直接対決
+// ウエストリーグ＝パ・リーグ方式：勝率→直接対決→勝利数
+function sortStandings(list, leagueCode){
+  return list.slice().sort((a,b)=>{
+    const pa=winPct(a), pb=winPct(b);
+    if(pa!==pb) return pb-pa;
+    if(leagueCode==='H'){
+      if(a.wins!==b.wins) return b.wins-a.wins;
+      const hh = headToHeadPct(a,b);
+      if(hh!==0.5) return hh>0.5?-1:1;
+      return 0;
+    } else {
+      const hh = headToHeadPct(a,b);
+      if(hh!==0.5) return hh>0.5?-1:1;
+      if(a.wins!==b.wins) return b.wins-a.wins;
+      return 0;
+    }
+  });
+}
+function finalizeStandings(){
+  return {
+    H: sortStandings(DB.teams.filter(t=>t.league===LEAGUE_CODES[0]),'H'),
+    B: sortStandings(DB.teams.filter(t=>t.league===LEAGUE_CODES[1]),'B'),
+  };
+}
+function gamesBehind(leader, team){
+  if(leader.id===team.id) return '-';
+  const gb = ((leader.wins-team.wins)+(team.losses-leader.losses))/2;
+  return gb.toFixed(1);
+}
+function regularSeasonComplete(){ return DB.schedule.length>0 && DB.schedule.every(g=>g.played); }
+
+function standingsHTML(){
+  function table(leagueCode, title, ruleNote, ruleFlag){
+    const list = sortStandings(DB.teams.filter(t=>t.league===leagueCode), ruleFlag);
+    const leader = list[0];
+    const rows = list.map((t,i)=>`
+      <tr>
+        <td>${i+1}</td>
+        <td class="name">${t.name}</td>
+        <td>${t.wins+t.losses+t.ties}</td>
+        <td>${t.wins}</td>
+        <td>${t.losses}</td>
+        <td>${t.ties}</td>
+        <td>${fmt3(winPct(t))}</td>
+        <td>${gamesBehind(leader,t)}</td>
+      </tr>`).join('');
+    return `<div class="card">
+      <div class="row between"><h2 style="margin:0;">${title}</h2><button class="edit-btn" data-editleague="${leagueCode}">✎</button></div>
+      <div class="muted" style="margin:6px 0;">勝率が同じ場合の順位決定：${ruleNote}</div>
+      <table><thead><tr><th>順位</th><th>チーム</th><th>試合</th><th>勝</th><th>敗</th><th>分</th><th>勝率</th><th>差</th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+  let html = table(LEAGUE_CODES[0],leagueName(LEAGUE_CODES[0]),'まず①勝利数の多い方を上位に。それでも並べば②その2チーム同士の直接対決の勝率で決定','H') +
+             table(LEAGUE_CODES[1],leagueName(LEAGUE_CODES[1]),'まず①その2チーム同士の直接対決の勝率で決定。それでも並べば②勝利数の多い方を上位に','B');
+
+  if(regularSeasonComplete()){
+    html += `<div class="card"><h2>ポストシーズン</h2><div class="muted">レギュラーシーズンが終了しました。クライマックスシリーズ・日本シリーズの進行は「試合」タブから行えます。</div></div>`;
+  } else {
+    const done = DB.schedule.filter(g=>g.played).length;
+    html += `<div class="card"><h2>ポストシーズン</h2><div class="muted">レギュラーシーズン（${done} / ${DB.schedule.length} 試合）が終わると、「試合」タブからクライマックスシリーズ・日本シリーズに進めます。</div></div>`;
+  }
+  html += headToHeadMatrixHTML();
+  return html;
+}
+// 対戦成績マトリクス：行チームから見た、列チームとの通算対戦成績（勝-敗-分）
+function headToHeadMatrixHTML(){
+  const teams = DB.teams;
+  const headerCells = teams.map(t=>`<th style="font-size:9.5px;white-space:nowrap;">${t.name.slice(0,4)}</th>`).join('');
+  const rows = teams.map(t1=>{
+    const cells = teams.map(t2=>{
+      if(t1.id===t2.id) return '<td class="muted">―</td>';
+      const games = DB.schedule.filter(g=>g.played && ((g.home===t1.id&&g.away===t2.id)||(g.home===t2.id&&g.away===t1.id)));
+      let w=0,l=0,tt=0;
+      games.forEach(g=>{
+        const t1IsHome = g.home===t1.id;
+        if(g.result.winner==='tie') tt++;
+        else if((g.result.winner==='home')===t1IsHome) w++;
+        else l++;
+      });
+      return `<td style="font-size:10px;">${w}-${l}${tt?'-'+tt:''}</td>`;
+    }).join('');
+    return `<tr><td class="name" style="white-space:nowrap;">${t1.name}</td>${cells}</tr>`;
+  }).join('');
+  return `<details class="howto">
+    <summary>対戦成績マトリクス（行チーム視点の対 列チーム 勝-敗-分）</summary>
+    <div class="table-scroll" style="margin-top:8px;">
+    <table><thead><tr><th></th>${headerCells}</tr></thead><tbody>${rows}</tbody></table>
+    </div>
+  </details>`;
+}
+
+/* ---------- postseason (CS / 日本シリーズ) ---------- */
+function makeSeries(teamA, teamB, winsToClinch, advA, advB, label){
+  return { teamA, teamB, winsA:advA||0, winsB:advB||0, winsToClinch, games:[], winner:null, label };
+}
+function startPostseason(){
+  const {H,B} = finalizeStandings();
+  DB.teams.forEach(t=>t.roster.forEach(p=>{ p.psStats = emptyStatLine(); }));
+  DB.postseason = {
+    standings:{H,B},
+    series:{
+      H1: makeSeries(H[1],H[2],2,0,0,leagueName('H')+' ファーストステージ（2位 vs 3位・2勝先取）'),
+      B1: makeSeries(B[1],B[2],2,0,0,leagueName('B')+' ファーストステージ（2位 vs 3位・2勝先取）'),
+      H2: null, B2: null, JS: null,
+    },
+    champion: null,
+  };
+}
+function progressPostseason(){
+  const ps = DB.postseason;
+  if(!ps) return;
+  const {H,B} = ps.standings;
+  if(!ps.series.H2 && ps.series.H1.winner){
+    ps.series.H2 = makeSeries(H[0], ps.series.H1.winner, 4, 1, 0, leagueName('H')+' ファイナルステージ（1位に1勝のアドバンテージ・4勝先取）');
+  }
+  if(!ps.series.B2 && ps.series.B1.winner){
+    ps.series.B2 = makeSeries(B[0], ps.series.B1.winner, 4, 1, 0, leagueName('B')+' ファイナルステージ（1位に1勝のアドバンテージ・4勝先取）');
+  }
+  if(!ps.series.JS && ps.series.H2 && ps.series.H2.winner && ps.series.B2 && ps.series.B2.winner){
+    ps.series.JS = makeSeries(ps.series.H2.winner, ps.series.B2.winner, 4, 0, 0, '日本シリーズ（4勝先取）');
+  }
+  if(ps.series.JS && ps.series.JS.winner){
+    ps.champion = ps.series.JS.winner;
+  }
+}
+// レギュラーシーズン終了後、ポストシーズンが未完了なら残り全てを自動で消化する（新シーズンへ進む前に必ず決着をつける）
+function autoCompletePostseason(){
+  if(!DB.postseason) startPostseason();
+  let guard = 0;
+  while(!DB.postseason.champion && guard < 100){
+    progressPostseason();
+    ['H1','B1','H2','B2','JS'].forEach(key=>{
+      const s = DB.postseason.series[key];
+      if(s && !s.winner){
+        const game = newGame(s.teamA, s.teamB, null);
+        game.seriesKey = key;
+        autoSimGame(game);
+      }
+    });
+    guard++;
+  }
+  progressPostseason();
+}
+function postseasonSectionHTML(){
+  progressPostseason();
+  let html = '';
+
+  if(!DB.postseason){
+    html += `<div class="card">
+      <div class="muted" style="margin-bottom:8px;">ポストシーズンは、ここから1試合ずつ「観る」または「自動」で進めます（「試合」カードの一括自動シミュレートボタンでもまとめて消化できます）。</div>
+      <button class="btn" id="startPostseasonBtn">クライマックスシリーズを開始</button>
+    </div>`;
+    return html;
+  }
+
+  function seriesCard(s){
+    if(!s) return '';
+    if(s.winner){
+      // 決着済みシリーズはコンパクトに1行で表示（各戦の詳細は折りたたみ）
+      const gamesHtml = s.games.map((g,i)=>{
+        const h=teamById(g.homeId), a=teamById(g.awayId);
+        return `<div class="game-row"><div class="vs">第${i+1}戦　${a.name} ${g.scoreAway} - ${g.scoreHome} ${h.name}${g.tie?'（引分・再戦）':''}</div></div>`;
+      }).join('');
+      return `<details class="howto">
+        <summary>${s.label}：${s.teamA.name} ${s.winsA}-${s.winsB} ${s.teamB.name}　→ ${s.winner.name}突破</summary>
+        <div style="margin-top:8px;">${gamesHtml}</div>
+      </details>`;
+    }
+    const gamesHtml = s.games.map((g,i)=>{
+      const h=teamById(g.homeId), a=teamById(g.awayId);
+      return `<div class="game-row"><div class="vs">第${i+1}戦　${a.name} ${g.scoreAway} - ${g.scoreHome} ${h.name}${g.tie?'（引分・再戦）':''}</div></div>`;
+    }).join('');
+    const nextNum = s.games.length+1;
+    const actionHtml = `<div class="row" style="margin-top:6px;">
+        <button class="btn small" data-psplay="${s._key}">第${nextNum}戦を観る</button>
+        <button class="btn small secondary" data-pssim="${s._key}">第${nextNum}戦を自動</button>
+      </div>`;
+    return `<div class="card">
+      <h2>${s.label}</h2>
+      <div class="muted">${s.teamA.name} ${s.winsA} - ${s.winsB} ${s.teamB.name}</div>
+      ${gamesHtml}
+      ${actionHtml}
+    </div>`;
+  }
+  ['H1','B1','H2','B2','JS'].forEach(key=>{ if(DB.postseason.series[key]) DB.postseason.series[key]._key = key; });
+  html += seriesCard(DB.postseason.series.H1);
+  html += seriesCard(DB.postseason.series.B1);
+  html += seriesCard(DB.postseason.series.H2);
+  html += seriesCard(DB.postseason.series.B2);
+  html += seriesCard(DB.postseason.series.JS);
+
+  if(DB.postseason.champion){
+    html += `<div class="finish-banner"><div>日本一</div><div class="score">${DB.postseason.champion.name}</div></div>`;
+  }
+  return html;
+}
+function wireStandingsEvents(){
+  document.querySelectorAll('[data-editleague]').forEach(b=>{
+    b.onclick = ()=>{ openEditLeagueModal(b.dataset.editleague); };
+  });
+}
+
+/* ---------- leaders tab ---------- */
+const LEADER_CATS = [
+  {key:'avg', label:'打率', calc:p=>avgOf(p), fmt:v=>fmt3(v), minAb:true},
+  {key:'obp', label:'出塁率', calc:p=>obpOf(p), fmt:v=>fmt3(v), minAb:true},
+  {key:'slg', label:'長打率', calc:p=>slgOf(p), fmt:v=>fmt3plain(v), minAb:true},
+  {key:'ops', label:'OPS', calc:p=>opsOf(p), fmt:v=>fmt3plain(v), minAb:true},
+  {key:'hr', label:'本塁打', calc:p=>p.stats.hr, fmt:v=>v, minAb:false},
+  {key:'rbi', label:'打点', calc:p=>p.stats.rbi, fmt:v=>v, minAb:false},
+  {key:'h', label:'安打', calc:p=>p.stats.h, fmt:v=>v, minAb:false},
+  {key:'triples', label:'三塁打', calc:p=>p.stats.triples, fmt:v=>v, minAb:false},
+  {key:'bb', label:'四球', calc:p=>p.stats.bb, fmt:v=>v, minAb:false},
+  {key:'r', label:'得点', calc:p=>p.stats.r, fmt:v=>v, minAb:false},
+  {key:'sb', label:'盗塁', calc:p=>p.stats.sb||0, fmt:v=>v, minAb:false},
+  {key:'k', label:'三振(粘り不足王)', calc:p=>p.stats.k, fmt:v=>v, minAb:false},
+];
+// 同じ苗字の選手がいない場合は何も付けない。いる場合だけ、下の名前の頭文字(漢字)を小さく右下に添えて区別する
+function nameBadge(player, contextPlayers){
+  const dupe = contextPlayers.filter(x=>x.name===player.name).length > 1;
+  if(!dupe) return player.name;
+  return `<span style="position:relative;display:inline-block;padding-right:11px;">${player.name}<span style="position:absolute;right:-2px;bottom:-4px;font-size:9.5px;line-height:1;color:var(--pencil);font-weight:700;">${player.given.charAt(0)}</span></span>`;
+}
+function leadersHTML(){
+  const cat = LEADER_CATS.find(c=>c.key===UI.leaderCat) || LEADER_CATS[0];
+  const leagueFilter = UI.leaderLeague || 'ALL';
+  let all = [];
+  DB.teams.forEach(t=>t.roster.forEach(p=>all.push({p,t})));
+  const allPlayersFlat = all.map(x=>x.p);
+  if(leagueFilter!=='ALL') all = all.filter(x=>x.t.league===leagueFilter);
+  if(cat.minAb) all = all.filter(x=>x.p.stats.ab>=10);
+  all.sort((a,b)=> cat.calc(b.p)-cat.calc(a.p));
+  const top = all.slice(0,10);
+
+  const rows = top.map((x,i)=>`
+    <tr class="${cat.key===UI.leaderCat?'':''}">
+      <td>${i+1}</td>
+      <td class="name">${nameBadge(x.p, allPlayersFlat)}${x.p.ability?`<span class="pill" style="margin-left:4px;">${ABILITY_INFO[x.p.ability].label}</span>`:''}<div class="muted" style="font-size:10.5px;">${x.t.name}</div></td>
+      <td class="${cat.key==='avg'?'hl':''}">${fmt3(avgOf(x.p))}</td>
+      <td class="${cat.key==='obp'?'hl':''}">${fmt3(obpOf(x.p))}</td>
+      <td class="${cat.key==='slg'?'hl':''}">${fmt3plain(slgOf(x.p))}</td>
+      <td class="${cat.key==='ops'?'hl':''}">${fmt3plain(opsOf(x.p))}</td>
+      <td class="${cat.key==='h'?'hl':''}">${x.p.stats.h}</td>
+      <td class="${cat.key==='triples'?'hl':''}">${x.p.stats.triples}</td>
+      <td class="${cat.key==='hr'?'hl':''}">${x.p.stats.hr}</td>
+      <td class="${cat.key==='rbi'?'hl':''}">${x.p.stats.rbi}</td>
+      <td class="${cat.key==='bb'?'hl':''}">${x.p.stats.bb}</td>
+      <td class="${cat.key==='k'?'hl':''}">${x.p.stats.k}</td>
+    </tr>`).join('');
+
+  const tabs = LEADER_CATS.map(c=>`<button class="${c.key===cat.key?'active':''}" data-cat="${c.key}">${c.label}</button>`).join('');
+  const leagueTabs = [
+    {key:'ALL',label:'両リーグ'},
+    {key:LEAGUE_CODES[0],label:leagueName(LEAGUE_CODES[0])},
+    {key:LEAGUE_CODES[1],label:leagueName(LEAGUE_CODES[1])},
+  ].map(l=>`<button class="${leagueFilter===l.key?'active':''}" data-league="${l.key}">${l.label}</button>`).join('');
+
+  return `
+  <div class="card">
+    <h2>個人成績ランキング</h2>
+    <div class="subtabs">${leagueTabs}</div>
+    <div class="subtabs">${tabs}</div>
+    <div class="muted" style="margin-bottom:6px;">並び順：${cat.label}（${leagueFilter==='ALL'?'両リーグ合算':leagueName(leagueFilter)+'のみ'}）　${cat.minAb ? '／規定打席の目安として打数10以上が対象' : ''}</div>
+    <div class="table-scroll">
+    <table>
+      <thead><tr><th>順位</th><th>選手</th><th>打率</th><th>出塁率</th><th>長打率</th><th>OPS</th><th>安打</th><th>三塁打</th><th>本塁打</th><th>打点</th><th>四球</th><th>三振</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="12" class="muted">まだ記録がありません。試合を消化しましょう。</td></tr>'}</tbody>
+    </table>
+    </div>
+  </div>`;
+}
+function wireLeaderEvents(){
+  document.querySelectorAll('[data-cat]').forEach(b=>{
+    b.onclick = ()=>{ UI.leaderCat=b.dataset.cat; render(); };
+  });
+  document.querySelectorAll('[data-league]').forEach(b=>{
+    b.onclick = ()=>{ UI.leaderLeague=b.dataset.league; render(); };
+  });
+}
+
+/* ---------- roster tab ---------- */
+function rosterListHTML(){
+  const cards = DB.teams.map(t=>`
+    <div class="team-card" data-team="${t.id}">
+      <div class="row between" style="align-items:flex-start;">
+        <div class="lg">${leagueName(t.league)}</div>
+        <button class="edit-btn" data-editteam="${t.id}">✎ 編集</button>
+      </div>
+      <div class="tn">${t.name}</div>
+      <div class="tg">${t.tagline}</div>
+      <div class="rec">${t.wins}勝 ${t.losses}敗 ${t.ties}分</div>
+    </div>`).join('');
+  return `<div class="card"><h2>球団一覧</h2><div class="team-grid">${cards}</div></div>`;
+}
+function rosterDetailHTML(teamId){
+  const t = teamById(teamId);
+  const isMyTeam = UI.myTeamId===t.id;
+  let allPlayersFlat = [];
+  DB.teams.forEach(tm=>tm.roster.forEach(p=>allPlayersFlat.push(p)));
+
+  // 打順・能力・入れ替えを1つの欄にまとめる（打順順。自チームのみ▲▼を表示）
+  const abilityRows = t.battingOrder.map((p,i)=>`
+    <div class="player-row">
+      <div class="pos">${i+1}</div>
+      <div class="nm">#${formatNumber(p.number)} ${nameBadge(p, allPlayersFlat)}（${p.pos}）　${p.age}歳${p.ability?`<span class="pill" style="margin-left:6px;">${ABILITY_INFO[p.ability].label}</span>`:''}
+        <div class="abl">パワー${gradeBadge(p.power)}　ミート${gradeBadge(p.contact)}　走力${gradeBadge(p.speed)}　在籍${p.seasonsPlayed||0}年目</div>
+        ${p.ability?`<div class="abl" style="color:var(--pencil);">${ABILITY_INFO[p.ability].desc}</div>`:''}
+      </div>
+      <button class="edit-btn" data-editplayer="${p.id}">✎</button>
+    </div>`).join('');
+
+  const managerHtml = t.manager ? `<div class="card">
+    <h2>監督</h2>
+    <div class="muted">${t.manager.label}　<span class="pill">就任${t.manager.hireSeason}年目〜　残り任期${t.manager.tenureYears}年</span></div>
+    <div class="muted" style="margin-top:4px;">${t.manager.desc}</div>
+  </div>` : '';
+
+  const statMode = UI.rosterStatMode || 'season';
+  const statRows = t.battingOrder.map((p,i)=>{
+    const s = statMode==='career' ? p.career : p.stats;
+    return `
+    <tr>
+      <td>${i+1}</td>
+      <td class="name">${nameBadge(p, allPlayersFlat)}<span class="muted" style="font-size:9px;">(${p.pos})</span></td>
+      <td>${fmt3(avgOfStats(s))}</td>
+      <td>${s.h}</td>
+      <td>${s.hr}</td>
+      <td>${s.rbi}</td>
+      <td>${s.sb||0}</td>
+      <td>${fmt3plain(opsOfStats(s))}</td>
+    </tr>`;
+  }).join('');
+
+  const alumni = t.alumni || [];
+  const alumniHtml = alumni.length ? `<details class="howto">
+    <summary>OB（退団選手） ${alumni.length}名</summary>
+    <table class="compact-table"><thead><tr><th class="namehead">選手</th><th>在籍</th><th>打率</th><th>OPS</th><th>安打</th><th>本塁打</th><th>打点</th></tr></thead>
+    <tbody>${alumni.slice().reverse().map(a=>`<tr><td class="name">${a.name}(${a.pos})</td><td>${a.seasonsPlayed}年</td><td>${fmt3(avgOfStats(a.career))}</td><td>${fmt3plain(opsOfStats(a.career))}</td><td>${a.career.h}</td><td>${a.career.hr}</td><td>${a.career.rbi}</td></tr>`).join('')}</tbody></table>
+  </details>` : '';
+
+  return `
+  <div class="card">
+    <div class="row between">
+      <button class="btn secondary small" id="backToTeamsBtn">← 球団一覧に戻る</button>
+      <button class="edit-btn" data-editteam="${t.id}">✎ 編集</button>
+    </div>
+    <div style="margin-top:10px;">
+      <div class="lg muted">${leagueName(t.league)}</div>
+      <h2 style="margin-top:2px;">${t.name}</h2>
+      <div class="muted" style="font-style:italic;margin-bottom:8px;">${t.tagline}</div>
+      <div class="muted">${t.wins}勝 ${t.losses}敗 ${t.ties}分　得点${t.runsFor}／失点${t.runsAgainst}</div>
+    </div>
+  </div>
+  ${managerHtml}
+  <div class="card">
+    <h2>打順・能力<span class="muted" style="font-size:11px;font-weight:400;">（成績に応じて自動編成）</span></h2>
+    ${abilityRows}
+    ${alumniHtml}
+  </div>
+  <div class="card">
+    <div class="row between"><h2 style="margin:0;">チーム成績（打順順）</h2></div>
+    <div class="subtabs">
+      <button class="${statMode==='season'?'active':''}" data-statmode="season">今シーズン</button>
+      <button class="${statMode==='career'?'active':''}" data-statmode="career">通算</button>
+    </div>
+    <div class="muted" style="font-size:10.5px;margin-bottom:4px;">詳しい成績（出塁率・長打率・四球・三振など）は「個人成績」タブで確認できます。</div>
+    <table class="compact-table">
+      <thead><tr><th></th><th class="namehead">選手</th><th>打率</th><th>安打</th><th>本塁打</th><th>打点</th><th>盗塁</th><th>OPS</th></tr></thead>
+      <tbody>${statRows}</tbody>
+    </table>
+  </div>`;
+}
+function wireRosterEvents(){
+  document.querySelectorAll('[data-team]').forEach(c=>{
+    c.onclick = ()=>{ UI.rosterTeamId=c.dataset.team; render(); };
+  });
+  document.querySelectorAll('[data-editteam]').forEach(b=>{
+    b.onclick = (e)=>{ if(e&&e.stopPropagation) e.stopPropagation(); openEditTeamModal(b.dataset.editteam); };
+  });
+  document.querySelectorAll('[data-editplayer]').forEach(b=>{
+    b.onclick = (e)=>{ if(e&&e.stopPropagation) e.stopPropagation(); openEditPlayerModal(b.dataset.editplayer); };
+  });
+  document.querySelectorAll('[data-statmode]').forEach(b=>{
+    b.onclick = ()=>{ UI.rosterStatMode = b.dataset.statmode; render(); };
+  });
+  const back = $('#backToTeamsBtn');
+  if(back) back.onclick = ()=>{ UI.rosterTeamId=null; render(); };
+}
+
+/* ---------- 球団史（シーズンをまたいだ記録。ブラウザの永続ストレージに保存） ---------- */
+function computeSeasonLeaders(){
+  let all = [];
+  DB.teams.forEach(t=>t.roster.forEach(p=>all.push({p,t})));
+  const qualified = all.filter(x=>x.p.stats.ab>=10);
+  function top3(list, calc){
+    return list.slice().sort((a,b)=>calc(b.p)-calc(a.p)).slice(0,3)
+      .map(x=>({name:x.p.name, team:x.t.name, value:calc(x.p)}));
+  }
+  return {
+    avg: top3(qualified, p=>avgOf(p)),
+    hr: top3(all, p=>p.stats.hr),
+    rbi: top3(all, p=>p.stats.rbi),
+  };
+}
+// シーズンMVP：規定打数(10打数)以上でOPS最高の選手
+// シーズンMVP：規定打数(10打数)以上でOPS最高の選手を、リーグごとに選出
+function computeSeasonMVP(){
+  const result = {H:null, B:null};
+  [['H',LEAGUE_CODES[0]],['B',LEAGUE_CODES[1]]].forEach(([outKey,code])=>{
+    let all = [];
+    DB.teams.filter(t=>t.league===code).forEach(t=>t.roster.forEach(p=>{ if(p.stats.ab>=10) all.push({p,t}); }));
+    if(!all.length) return;
+    const best = all.slice().sort((a,b)=>opsOf(b.p)-opsOf(a.p))[0];
+    best.p.awards.mvp++;
+    result[outKey] = {name:best.p.name, team:best.t.name, ops:opsOf(best.p), avg:avgOf(best.p), hr:best.p.stats.hr, rbi:best.p.stats.rbi};
+  });
+  return result;
+}
+// ポストシーズンMVP：日本一になったチームの選手の中から、ポストシーズンOPS最高の選手を選出
+function computePostseasonMVP(){
+  if(!DB.postseason || !DB.postseason.champion) return null;
+  const champTeam = DB.postseason.champion;
+  const candidates = champTeam.roster.filter(p=>p.psStats && p.psStats.ab>=3);
+  if(!candidates.length) return null;
+  const best = candidates.slice().sort((a,b)=>opsOfStats(b.psStats)-opsOfStats(a.psStats))[0];
+  best.awards.psMvp++;
+  return {name:best.name, team:champTeam.name, ops:opsOfStats(best.psStats), avg:avgOfStats(best.psStats), hr:best.psStats.hr, rbi:best.psStats.rbi};
+}
+// ベストナイン：リーグごとに、守備位置ごとの最高OPS選手を選出（規定打数10以上）
+function computeBestNine(){
+  const result = {H:[], B:[]};
+  [['H',LEAGUE_CODES[0]],['B',LEAGUE_CODES[1]]].forEach(([outKey,code])=>{
+    POSITIONS.forEach(pos=>{
+      let candidates = [];
+      DB.teams.filter(t=>t.league===code).forEach(t=>t.roster.forEach(p=>{ if(p.pos===pos && p.stats.ab>=10) candidates.push({p,t}); }));
+      if(!candidates.length) return;
+      const best = candidates.slice().sort((a,b)=>opsOf(b.p)-opsOf(a.p))[0];
+      best.p.awards.bestNine++;
+      result[outKey].push({pos, name:best.p.name, team:best.t.name, ops:opsOf(best.p), avg:avgOf(best.p), hr:best.p.stats.hr});
+    });
+  });
+  return result;
+}
+// 新人王：在籍0年目（＝今シーズンが初年度）の選手の中から、リーグごとにOPS最高の選手を選出
+function computeRookieOfYear(){
+  const result = {H:null, B:null};
+  [['H',LEAGUE_CODES[0]],['B',LEAGUE_CODES[1]]].forEach(([outKey,code])=>{
+    let all = [];
+    DB.teams.filter(t=>t.league===code).forEach(t=>t.roster.forEach(p=>{ if((p.seasonsPlayed||0)===0 && p.stats.ab>=10) all.push({p,t}); }));
+    if(!all.length) return;
+    const best = all.slice().sort((a,b)=>opsOf(b.p)-opsOf(a.p))[0];
+    best.p.awards.rookie++;
+    result[outKey] = {name:best.p.name, team:best.t.name, ops:opsOf(best.p), avg:avgOf(best.p), hr:best.p.stats.hr, rbi:best.p.stats.rbi};
+  });
+  return result;
+}
+// ゴールデングラブ賞：リーグ・守備位置ごとに、規定出場ある中で失策が最も少ない選手を選出（同数ならOPSで判定）
+function computeGoldenGlove(){
+  const result = {H:[], B:[]};
+  [['H',LEAGUE_CODES[0]],['B',LEAGUE_CODES[1]]].forEach(([outKey,code])=>{
+    POSITIONS.forEach(pos=>{
+      let candidates = [];
+      DB.teams.filter(t=>t.league===code).forEach(t=>t.roster.forEach(p=>{ if(p.pos===pos && p.stats.pa>=10) candidates.push({p,t}); }));
+      if(!candidates.length) return;
+      const best = candidates.slice().sort((a,b)=> (a.p.stats.errors-b.p.stats.errors) || (opsOf(b.p)-opsOf(a.p)))[0];
+      best.p.awards.goldenGlove++;
+      result[outKey].push({pos, name:best.p.name, team:best.t.name, errors:best.p.stats.errors});
+    });
+  });
+  return result;
+}
+var IN_MEMORY_SEASON_HISTORY = null; // window.storageが使えない環境向けのフォールバック（このブラウザタブを閉じるまでは保持される）
+var STORAGE_AVAILABLE = (typeof window!=='undefined' && !!window.storage);
+
+async function loadSeasonHistory(){
+  if(!STORAGE_AVAILABLE){
+    if(IN_MEMORY_SEASON_HISTORY===null) IN_MEMORY_SEASON_HISTORY = [];
+    return IN_MEMORY_SEASON_HISTORY;
+  }
+  try{
+    const res = await window.storage.get('season-history', false);
+    if(res && res.value) return JSON.parse(res.value);
+  } catch(e){ /* no history saved yet */ }
+  return [];
+}
+function sleep(ms){ return new Promise(res=>setTimeout(res, ms)); }
+async function saveSeasonHistory(history){
+  if(!STORAGE_AVAILABLE){
+    IN_MEMORY_SEASON_HISTORY = history;
+    return true;
+  }
+  const payload = JSON.stringify(history);
+  let lastErr = null;
+  for(let attempt=0; attempt<3; attempt++){
+    try{
+      const result = await window.storage.set('season-history', payload, false);
+      if(result) return true;
+      lastErr = 'window.storage.set returned no result';
+    } catch(e){
+      lastErr = (e && e.message) ? e.message : String(e);
+    }
+    if(attempt<2) await sleep(400*(attempt+1)); // 少し間隔を空けて再試行（一時的な失敗を救う）
+  }
+  DB.lastStorageError = lastErr + '（3回試行）';
+  return false;
+}
+// 自チームの選手個人成績のスナップショット（球団史で選手ごとの成績推移を見られるように）
+function buildMyTeamRosterSnapshot(){
+  if(!UI.myTeamId) return null;
+  const t = teamById(UI.myTeamId);
+  if(!t) return null;
+  return {
+    teamId: t.id,
+    teamName: t.name,
+    players: t.battingOrder.map((p,i)=>({
+      order:i+1, name:p.name, pos:p.pos,
+      pa:p.stats.pa, ab:p.stats.ab, h:p.stats.h,
+      doubles:p.stats.doubles, triples:p.stats.triples, hr:p.stats.hr,
+      rbi:p.stats.rbi, bb:p.stats.bb, k:p.stats.k,
+      avg:avgOf(p), ops:opsOf(p),
+    })),
+  };
+}
+async function archiveCurrentSeason(){
+  const {H,B} = finalizeStandings();
+  const history = await loadSeasonHistory();
+  const nextNum = history.length ? Math.max(...history.map(s=>s.seasonNum))+1 : 1;
+  const record = {
+    seasonNum: nextNum,
+    savedAt: new Date().toISOString(),
+    leagueNames: { H: leagueName('H'), B: leagueName('B') },
+    standings: {
+      H: H.map((t,i)=>({teamId:t.id, name:t.name, rank:i+1, wins:t.wins, losses:t.losses, ties:t.ties})),
+      B: B.map((t,i)=>({teamId:t.id, name:t.name, rank:i+1, wins:t.wins, losses:t.losses, ties:t.ties})),
+    },
+    champion: (DB.postseason && DB.postseason.champion) ? DB.postseason.champion.name : null,
+    championTeamId: (DB.postseason && DB.postseason.champion) ? DB.postseason.champion.id : null,
+    leaders: computeSeasonLeaders(),
+    mvp: computeSeasonMVP(),
+    postseasonMvp: computePostseasonMVP(),
+    bestNine: computeBestNine(),
+    rookieOfYear: computeRookieOfYear(),
+    goldenGlove: computeGoldenGlove(),
+  };
+  history.push(record);
+  const saved = await saveSeasonHistory(history);
+  if(!saved){
+    const err = new Error(DB.lastStorageError || 'storage unavailable');
+    err.record = record; // 保存に失敗しても、この場で計算したシーズン結果自体は失わない
+    throw err;
+  }
+  return record;
+}
+function historyHTML(){
+  if(UI.seasonHistory===null){
+    if(!UI.seasonHistoryLoading){
+      UI.seasonHistoryLoading = true;
+      loadSeasonHistory().then(h=>{
+        UI.seasonHistory = h;
+        UI.seasonHistoryLoading = false;
+        if(UI.tab==='history') renderSection();
+      }).catch(()=>{
+        UI.seasonHistory = [];
+        UI.seasonHistoryLoading = false;
+        if(UI.tab==='history') renderSection();
+      });
+    }
+    return `<div class="card"><h2>球団史</h2><div class="muted">読み込み中…</div></div>`;
+  }
+  if(UI.seasonHistory.length===0){
+    return `<div class="card"><h2>球団史</h2><div class="muted">まだ記録がありません。レギュラーシーズンを終えてから「シーズンを新しくする」を実行すると、そのシーズンの最終成績が記録されます。</div></div>`;
+  }
+  const seasons = UI.seasonHistory.slice().sort((a,b)=>b.seasonNum-a.seasonNum);
+
+  let trendHtml = '';
+  if(UI.myTeamId){
+    const myTeam = teamById(UI.myTeamId);
+    const chronological = UI.seasonHistory.slice().sort((a,b)=>a.seasonNum-b.seasonNum);
+    const trend = chronological.map(s=>{
+      const found = s.standings.H.find(t=>t.teamId===UI.myTeamId) || s.standings.B.find(t=>t.teamId===UI.myTeamId);
+      const isChamp = s.champion && myTeam && s.champion===myTeam.name;
+      return found ? `${found.rank}位${isChamp?'🏆':''}` : '?';
+    }).join(' → ');
+    if(myTeam) trendHtml = `<div class="card"><h2>${myTeam.name} の順位推移</h2><div class="muted">${trend}</div></div>`;
+  }
+
+  function leagueRows(list){
+    return list.map(t=>`<div class="game-row"><div class="vs">${t.rank}位　${t.name}（${t.wins}勝${t.losses}敗${t.ties}分）</div></div>`).join('');
+  }
+  const cards = seasons.map(s=>{
+    const lnH = (s.leagueNames && s.leagueNames.H) || leagueName('H');
+    const lnB = (s.leagueNames && s.leagueNames.B) || leagueName('B');
+    return `
+    <details class="howto" style="margin-bottom:10px;">
+      <summary>第${s.seasonNum}シーズン　${s.champion?`🏆 ${s.champion}`:'（ポストシーズン未実施）'}</summary>
+      <div class="rules">
+        <div style="font-weight:800;color:var(--pencil);margin-top:6px;">${lnH}</div>
+        ${leagueRows(s.standings.H)}
+        <div style="font-weight:800;color:var(--pencil);margin-top:10px;">${lnB}</div>
+        ${leagueRows(s.standings.B)}
+        <div class="muted" style="margin-top:10px;line-height:1.8;">
+          打率：${(s.leaders.avg||[]).map((x,i)=>`${i+1}位 ${x.name}（${x.team}）${fmt3(x.value)}`).join('　')||'-'}<br>
+          本塁打：${(s.leaders.hr||[]).map((x,i)=>`${i+1}位 ${x.name}（${x.team}）${x.value}本`).join('　')||'-'}<br>
+          打点：${(s.leaders.rbi||[]).map((x,i)=>`${i+1}位 ${x.name}（${x.team}）${x.value}点`).join('　')||'-'}
+        </div>
+        <div class="muted" style="margin-top:10px;line-height:1.8;">
+          🏆 ${lnH}MVP：${s.mvp && s.mvp.H ? `${s.mvp.H.name}（${s.mvp.H.team}） 打率${fmt3(s.mvp.H.avg)}／OPS${fmt3plain(s.mvp.H.ops)}／${s.mvp.H.hr}本／${s.mvp.H.rbi}点` : '-'}<br>
+          🏆 ${lnB}MVP：${s.mvp && s.mvp.B ? `${s.mvp.B.name}（${s.mvp.B.team}） 打率${fmt3(s.mvp.B.avg)}／OPS${fmt3plain(s.mvp.B.ops)}／${s.mvp.B.hr}本／${s.mvp.B.rbi}点` : '-'}<br>
+          🏆 ポストシーズンMVP（優勝チームから選出）：${s.postseasonMvp ? `${s.postseasonMvp.name}（${s.postseasonMvp.team}） 打率${fmt3(s.postseasonMvp.avg)}／OPS${fmt3plain(s.postseasonMvp.ops)}／${s.postseasonMvp.hr}本／${s.postseasonMvp.rbi}点` : '-'}
+        </div>
+        ${s.bestNine ? `
+        <div style="font-weight:800;color:var(--pencil);margin-top:10px;">ベストナイン</div>
+        <div class="muted" style="line-height:1.8;">
+          <b>${lnH}</b>：${(s.bestNine.H||[]).map(b=>`${b.pos}:${b.name}(${b.team})`).join('　')||'-'}<br>
+          <b>${lnB}</b>：${(s.bestNine.B||[]).map(b=>`${b.pos}:${b.name}(${b.team})`).join('　')||'-'}
+        </div>` : ''}
+        <div class="muted" style="margin-top:10px;line-height:1.8;">
+          🌱 ${lnH}新人王：${s.rookieOfYear && s.rookieOfYear.H ? `${s.rookieOfYear.H.name}（${s.rookieOfYear.H.team}） 打率${fmt3(s.rookieOfYear.H.avg)}／${s.rookieOfYear.H.hr}本／${s.rookieOfYear.H.rbi}点` : '該当者なし'}<br>
+          🌱 ${lnB}新人王：${s.rookieOfYear && s.rookieOfYear.B ? `${s.rookieOfYear.B.name}（${s.rookieOfYear.B.team}） 打率${fmt3(s.rookieOfYear.B.avg)}／${s.rookieOfYear.B.hr}本／${s.rookieOfYear.B.rbi}点` : '該当者なし'}
+        </div>
+        ${s.goldenGlove ? `
+        <div style="font-weight:800;color:var(--pencil);margin-top:10px;">🧤 ゴールデングラブ賞</div>
+        <div class="muted" style="line-height:1.8;">
+          <b>${lnH}</b>：${(s.goldenGlove.H||[]).map(b=>`${b.pos}:${b.name}(${b.team})失策${b.errors}`).join('　')||'-'}<br>
+          <b>${lnB}</b>：${(s.goldenGlove.B||[]).map(b=>`${b.pos}:${b.name}(${b.team})失策${b.errors}`).join('　')||'-'}
+        </div>` : ''}
+      </div>
+    </details>`;
+  }).join('');
+
+  // 全チーム通算成績（記録されている全シーズン分を合算）
+  const totals = {};
+  DB.teams.forEach(t=>{ totals[t.id] = {name:t.name, wins:0, losses:0, ties:0}; });
+  UI.seasonHistory.forEach(s=>{
+    ['H','B'].forEach(lg=>{
+      (s.standings[lg]||[]).forEach(t=>{
+        if(!totals[t.teamId]) totals[t.teamId] = {name:t.name, wins:0, losses:0, ties:0};
+        totals[t.teamId].wins += t.wins; totals[t.teamId].losses += t.losses; totals[t.teamId].ties += t.ties;
+      });
+    });
+  });
+  const totalRows = Object.values(totals).sort((a,b)=> (b.wins-b.losses)-(a.wins-a.losses))
+    .map((t,i)=>{
+      const g=t.wins+t.losses; const pct = g>0 ? (t.wins/g) : 0;
+      return `<tr><td>${i+1}</td><td class="name">${t.name}</td><td>${t.wins}</td><td>${t.losses}</td><td>${t.ties}</td><td>${fmt3(pct)}</td></tr>`;
+    }).join('');
+  const teamTotalsHtml = `<details class="howto" style="margin-bottom:10px;">
+    <summary>全球団 通算成績（記録済み全${UI.seasonHistory.length}シーズン合算）</summary>
+    <table class="compact-table"><thead><tr><th></th><th class="namehead">チーム</th><th>勝</th><th>敗</th><th>分</th><th>勝率</th></tr></thead>
+    <tbody>${totalRows}</tbody></table>
+  </details>`;
+
+  // 各チームの順位回数（優勝=1位〜6位）と日本一回数の集計
+  const rankCounts = {};
+  DB.teams.forEach(t=>{ rankCounts[t.id] = {name:t.name, ranks:[0,0,0,0,0,0], jsChamp:0}; });
+  UI.seasonHistory.forEach(s=>{
+    ['H','B'].forEach(lg=>{
+      (s.standings[lg]||[]).forEach(t=>{
+        if(!rankCounts[t.teamId]) rankCounts[t.teamId] = {name:t.name, ranks:[0,0,0,0,0,0], jsChamp:0};
+        const r = Math.min(6, Math.max(1, t.rank));
+        rankCounts[t.teamId].ranks[r-1]++;
+      });
+    });
+    if(s.championTeamId && rankCounts[s.championTeamId]){
+      rankCounts[s.championTeamId].jsChamp++;
+    } else if(!s.championTeamId && s.champion){
+      const byName = Object.values(rankCounts).find(r2=>r2.name===s.champion);
+      if(byName) byName.jsChamp++;
+    }
+  });
+  const rankRows = Object.values(rankCounts).sort((a,b)=> (b.ranks[0]-a.ranks[0]) || (b.jsChamp-a.jsChamp))
+    .map(r=>`<tr><td class="name">${r.name}</td><td>${r.ranks[0]}</td><td>${r.ranks[1]}</td><td>${r.ranks[2]}</td><td>${r.ranks[3]}</td><td>${r.ranks[4]}</td><td>${r.ranks[5]}</td><td>${r.jsChamp}</td></tr>`).join('');
+  const rankHtml = `<details class="howto" style="margin-bottom:10px;">
+    <summary>各チームの優勝・順位回数（記録済み全${UI.seasonHistory.length}シーズン合算）</summary>
+    <table class="compact-table"><thead><tr><th class="namehead">チーム</th><th>優勝</th><th>2位</th><th>3位</th><th>4位</th><th>5位</th><th>6位</th><th>日本一</th></tr></thead>
+    <tbody>${rankRows}</tbody></table>
+  </details>`;
+
+  // 監督の通算成績（現任監督＋過去の監督を合算）
+  let managerRows = [];
+  DB.teams.forEach(t=>{
+    const list = (t.managerHistory||[]).concat(t.manager ? [t.manager] : []);
+    list.forEach(m=>{
+      const g = (m.wins||0)+(m.losses||0);
+      const pct = g>0 ? (m.wins||0)/g : 0;
+      managerRows.push({team:t.name, label:m.label, wins:m.wins||0, losses:m.losses||0, ties:m.ties||0, pct});
+    });
+  });
+  managerRows = managerRows.filter(r=>(r.wins+r.losses+r.ties)>0).sort((a,b)=>b.pct-a.pct);
+  const managerHistoryHtml = managerRows.length ? `<details class="howto" style="margin-bottom:10px;">
+    <summary>監督の通算成績</summary>
+    <table class="compact-table"><thead><tr><th class="namehead">チーム</th><th>采配</th><th>勝</th><th>敗</th><th>分</th><th>勝率</th></tr></thead>
+    <tbody>${managerRows.map(r=>`<tr><td class="name">${r.team}</td><td>${r.label}</td><td>${r.wins}</td><td>${r.losses}</td><td>${r.ties}</td><td>${fmt3(r.pct)}</td></tr>`).join('')}</tbody></table>
+  </details>` : '';
+
+  // 歴代個人成績トップ10（現役選手の通算 + 引退選手(OB)を合算。在籍10年以上が対象）
+  let allTimePlayers = [];
+  DB.teams.forEach(t=>{
+    t.roster.forEach(p=>allTimePlayers.push({name:p.name, team:t.name, career:p.career, awards:p.awards, active:true, seasonsPlayed:p.seasonsPlayed||0, debutSeason:p.debutSeason||1, lastSeason:DB.currentSeasonNum||1}));
+    (t.alumni||[]).forEach(a=>allTimePlayers.push({name:a.name, team:t.name, career:a.career, awards:a.awards||{mvp:0,bestNine:0,psMvp:0,rookie:0,goldenGlove:0}, active:false, seasonsPlayed:a.seasonsPlayed||0, debutSeason:a.debutSeason||1, lastSeason:a.lastSeason||1}));
+  });
+  function seasonRangeStr(x){
+    return x.active ? `'${x.debutSeason}-現役` : `'${x.debutSeason}-'${x.lastSeason}`;
+  }
+  function topN(calc, fmtFn, n){
+    return allTimePlayers.filter(x=>x.seasonsPlayed>=10).slice().sort((a,b)=>calc(b)-calc(a)).slice(0,n)
+      .map((x,i)=>`<tr><td>${i+1}</td><td class="name">${x.name}（${x.team}${x.active?'':'・OB'}）<div class="muted" style="font-size:9px;">${seasonRangeStr(x)}</div></td><td>${fmtFn(x)}</td></tr>`).join('');
+  }
+  function statTable(title, calc, fmtFn){
+    return `<div style="font-weight:800;color:var(--pencil);margin-top:8px;">${title}</div>
+    <table class="compact-table"><thead><tr><th></th><th class="namehead">選手</th><th>${title.replace('通算','')}</th></tr></thead>
+    <tbody>${topN(calc,fmtFn,10)}</tbody></table>`;
+  }
+  const qualifiedCount = allTimePlayers.filter(x=>x.seasonsPlayed>=10).length;
+  const awardRows = allTimePlayers.filter(x=>(x.awards.mvp+x.awards.bestNine+x.awards.psMvp+x.awards.rookie+x.awards.goldenGlove)>0)
+    .sort((a,b)=>(b.awards.mvp+b.awards.bestNine+b.awards.psMvp+b.awards.rookie+b.awards.goldenGlove)-(a.awards.mvp+a.awards.bestNine+a.awards.psMvp+a.awards.rookie+a.awards.goldenGlove)).slice(0,10)
+    .map(x=>`<tr><td class="name">${x.name}（${x.team}${x.active?'':'・OB'}）</td><td>${x.awards.mvp}</td><td>${x.awards.bestNine}</td><td>${x.awards.psMvp}</td><td>${x.awards.rookie}</td><td>${x.awards.goldenGlove}</td></tr>`).join('');
+  const allTimeHtml = allTimePlayers.length ? `<details class="howto" style="margin-bottom:10px;">
+    <summary>歴代個人成績トップ10（現役＋引退選手・通算／在籍10年以上）</summary>
+    <div style="margin-top:8px;">
+      ${qualifiedCount===0 ? '<div class="muted">在籍10年以上の選手がまだいません。</div>' : `
+      ${statTable('通算打率', x=>avgOfStats(x.career), x=>fmt3(avgOfStats(x.career)))}
+      ${statTable('通算安打', x=>x.career.h, x=>x.career.h+'本')}
+      ${statTable('通算本塁打', x=>x.career.hr, x=>x.career.hr+'本')}
+      ${statTable('通算打点', x=>x.career.rbi, x=>x.career.rbi+'点')}
+      ${statTable('通算盗塁', x=>x.career.sb||0, x=>(x.career.sb||0)+'個')}
+      ${statTable('通算OPS', x=>opsOfStats(x.career), x=>fmt3plain(opsOfStats(x.career)))}
+      <div style="font-weight:800;color:var(--pencil);margin-top:8px;">受賞歴（MVP／ベストナイン／CS MVP／新人王／ゴールデングラブ）</div>
+      <table class="compact-table"><thead><tr><th class="namehead">選手</th><th>MVP</th><th>BN</th><th>CS</th><th>新人</th><th>GG</th></tr></thead>
+      <tbody>${awardRows || '<tr><td colspan="6" class="muted">まだ受賞者がいません。</td></tr>'}</tbody></table>`}
+    </div>
+  </details>` : '';
+
+  return `<div class="card"><h2>球団史</h2><div class="muted">これまでのシーズンの最終成績を記録しています（${STORAGE_AVAILABLE?'この端末に保存され、次に開いたときも残ります':'このブラウザタブを開いている間だけ保持されます。タブを閉じたり再読み込みすると消えます'}）。チーム名・選手はシーズンをまたいで引き継がれ、オフシーズンごとに各球団1名だけガチャで入れ替わります。</div></div>${trendHtml}${teamTotalsHtml}${rankHtml}${managerHistoryHtml}${allTimeHtml}${cards}`;
+}
+
+render();
+</script>
+</body>
+</html>
