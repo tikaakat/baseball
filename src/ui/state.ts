@@ -27,13 +27,15 @@ export interface UIState {
   gachaMySelection: string | null;
   seasonHistory: SeasonRecord[] | null;
   seasonHistoryLoading: boolean;
+  /** 直前に球団史へ記録したシーズン（共有ボタン用） */
+  lastArchived: SeasonRecord | null;
 }
 
 export const UI: UIState = {
   tab: 'play', liveGame: null, flash: null, leaderCat: 'avg', leaderLeague: 'ALL', leaderMode: 'bat', pitchLeaderCat: 'era',
   rosterTeamId: null, rosterStatMode: 'season', rolling: false, myTeamId: null, modal: null,
   gachaResults: null, gachaSelecting: false, gachaMySelection: null,
-  seasonHistory: null, seasonHistoryLoading: false,
+  seasonHistory: null, seasonHistoryLoading: false, lastArchived: null,
 };
 
 /** シーズンが切り替わったときに画面の一時状態を片付ける */

@@ -4,6 +4,7 @@ import { TUNING } from './data';
 import { aiPitchingChoice, assignDecisions, currentPitcher, dayKeyFor, enterPitcher, fieldingSide, findPlayer, pickStarter, trackLeadChange } from './pitching';
 import { gameLineup } from './lineup';
 import { aiTactics } from './tactics';
+import { onGameFinished } from './news';
 import { managerEffects } from './team';
 import { DB } from './state';
 import type { BoxLine, Game, P1Face, P2Face, PitchBoxLine, Play, Player, SeriesKey, Side, Team } from './types';
@@ -228,6 +229,7 @@ function finishGame(game: Game, forcedTie = false): void {
   else game.winner = game.score.home > game.score.away ? 'home' : 'away';
   pushLog(game, `試合終了　${game.away.name} ${game.score.away} - ${game.score.home} ${game.home.name}`);
   assignDecisions(game);
+  onGameFinished(game);
 
   if (game.seriesKey) {
     const s = DB.postseason!.series[game.seriesKey]!;

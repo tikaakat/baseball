@@ -6,6 +6,8 @@ import { avgOfStats, opsOfStats } from '../engine/stats';
 import type { Awards, PitchLine, SeasonRecord, StandingRecord, StatLine } from '../engine/types';
 import { renderSection } from './app';
 import { fmt3, fmt3plain, fmtEra } from './format';
+import { recordsAndNewsHTML } from './news';
+import { shareSeason } from './share';
 import { UI } from './state';
 
 const EMPTY_AWARDS: Awards = { mvp: 0, bestNine: 0, psMvp: 0, rookie: 0, goldenGlove: 0 };
@@ -45,6 +47,7 @@ function seasonCardHTML(s: SeasonRecord): string {
   return `
     <details class="howto" style="margin-bottom:10px;">
       <summary>第${s.seasonNum}シーズン　${s.champion ? `🏆 ${s.champion}` : '（ポストシーズン未実施）'}</summary>
+      <button class="btn secondary small" data-share-season="${s.seasonNum}" style="margin:8px 0 2px;">📤 このシーズンをシェア</button>
       <div class="rules">
         <div style="font-weight:800;color:var(--pencil);margin-top:6px;">${lnH}</div>
         ${leagueRows(s.standings.H)}
@@ -221,5 +224,23 @@ export function renderHistory(): string {
     ? 'この端末に保存され、次に開いたときも残ります'
     : 'このブラウザタブを開いている間だけ保持されます。タブを閉じたり再読み込みすると消えます';
   return `<div class="card"><h2>球団史</h2><div class="muted">これまでのシーズンの最終成績を記録しています（${storageNote}）。チーム名・選手はシーズンをまたいで引き継がれ、オフシーズンごとに各球団1名だけガチャで入れ替わります。</div></div>`
-    + trendHTML(history) + teamTotalsHTML(history) + rankCountsHTML(history) + managerHistoryHTML() + allTimeHTML() + cards;
+    + recordsAndNewsHTML() + trendHTML(history) + teamTotalsHTML(history) + rankCountsHTML(history) + managerHistoryHTML() + allTimeHTML() + cards;
+}
+
+export function wireHistoryEvents(): void {
+  document.querySelectorAll<HTMLElement>('[data-share-season]').forEach((b) => {
+    b.onclick = () => {
+      const rec = (UI.seasonHistory ?? []).find((x) => String(x.seasonNum) === b.dataset.shareSeason);
+      if (rec) void shareSeason(rec).then((msg) => showToast(msg));
+    };
+  });
+}
+
+/** 画面下に一時的なメッセージを出す */
+function showToast(msg: string): void {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3500);
 }

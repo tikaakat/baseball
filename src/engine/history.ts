@@ -1,5 +1,6 @@
 /* 球団史（過去シーズンの記録）の保存・読み込み */
 import { computeBestNine, computeBestPitcher, computeGoldenGlove, computePitchingLeaders, computePostseasonMVP, computeRookieOfYear, computeSeasonLeaders, computeSeasonMVP } from './awards';
+import { onSeasonArchived } from './news';
 import { finalizeStandings } from './standings';
 import { DB, leagueName } from './state';
 import { kvGet, kvRemove, kvSet } from './storage';
@@ -68,6 +69,10 @@ export async function archiveCurrentSeason(): Promise<SeasonRecord> {
     bestPitcher: computeBestPitcher(),
   };
   history.push(record);
+  onSeasonArchived(record.champion, [
+    record.mvp.H && `${record.leagueNames.H} MVPは${record.mvp.H.team}の${record.mvp.H.name}`,
+    record.mvp.B && `${record.leagueNames.B} MVPは${record.mvp.B.team}の${record.mvp.B.name}`,
+  ].filter((x): x is string => !!x));
   const saved = await saveSeasonHistory(history);
   if (!saved) throw new ArchiveError(DB.lastStorageError || 'storage unavailable', record); // 計算した結果自体は失わない
   return record;

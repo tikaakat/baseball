@@ -283,6 +283,15 @@ export interface ManagerChange {
   reason: string;
 }
 
+export interface NewsItem {
+  season: number;
+  day: number | null;
+  text: string;
+  kind: 'milestone' | 'feat' | 'record' | 'retire' | 'title';
+  teamId: string | null;
+}
+export interface SeasonRecordHolder { value: number; name: string; team: string; season: number }
+
 export interface DBState {
   teams: Team[];
   schedule: ScheduleGame[];
@@ -293,6 +302,12 @@ export interface DBState {
   lastForcedRetirements?: { team: Team; out: Player; in: Player }[];
   lastManagerChanges?: ManagerChange[];
   lastStorageError?: string;
+  /** ニュース（新しいものが後ろ） */
+  news?: NewsItem[];
+  /** リーグのシーズン記録 */
+  records?: Partial<Record<'hr' | 'h' | 'sb' | 'w' | 'sv' | 'k', SeasonRecordHolder>>;
+  /** 今シーズンすでにニュースにした記録 */
+  recordNewsThisSeason?: string[];
   /** 遊び方の設定 */
   options?: { decisionCards?: boolean };
 }

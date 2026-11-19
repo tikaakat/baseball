@@ -39,6 +39,9 @@ export interface SaveData {
     currentSeasonNum: number;
     lastManagerChanges?: DBState['lastManagerChanges'];
     options?: DBState['options'];
+    news?: DBState['news'];
+    records?: DBState['records'];
+    recordNewsThisSeason?: DBState['recordNewsThisSeason'];
   };
   /** 画面側の状態（マイチーム・観戦中の試合など） */
   ui: { myTeamId: string | null; liveGame: SavedGame | null };
@@ -90,6 +93,9 @@ export function serializeState(ui: { myTeamId: string | null; liveGame: Game | n
       currentSeasonNum: DB.currentSeasonNum,
       lastManagerChanges: DB.lastManagerChanges,
       options: DB.options,
+      news: DB.news,
+      records: DB.records,
+      recordNewsThisSeason: DB.recordNewsThisSeason,
     },
     ui: { myTeamId: ui.myTeamId, liveGame: saveGame(ui.liveGame) },
   };
@@ -170,6 +176,9 @@ export function restoreState(data: SaveData): { myTeamId: string | null; liveGam
   DB.currentSeasonNum = data.db.currentSeasonNum;
   DB.lastManagerChanges = data.db.lastManagerChanges;
   DB.options = data.db.options;
+  DB.news = data.db.news;
+  DB.records = data.db.records;
+  DB.recordNewsThisSeason = data.db.recordNewsThisSeason;
   DB.lastForcedRetirements = [];
 
   return { myTeamId: data.ui.myTeamId && teamMap.has(data.ui.myTeamId) ? data.ui.myTeamId : null, liveGame };

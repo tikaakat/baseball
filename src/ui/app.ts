@@ -1,5 +1,5 @@
 /* 画面全体の描画とタブ切り替え */
-import { renderHistory } from './history';
+import { renderHistory, wireHistoryEvents } from './history';
 import { renderHowTo, wireHowToEvents } from './howto';
 import { renderLeaders, wireLeaderEvents } from './leaders';
 import { modalHTML, wireModalEvents } from './modal';
@@ -61,6 +61,7 @@ export function renderSection(): void {
       break;
     case 'history':
       sec.innerHTML = renderHistory();
+      wireHistoryEvents();
       break;
     case 'howto':
       sec.innerHTML = renderHowTo();

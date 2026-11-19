@@ -2,6 +2,7 @@
 import { ABILITY_AFFINITY, BENCH_POSITIONS, MANAGER_TYPES, POSITIONS, RETIREMENT, STAFF_SIZE, TEAM_DEFS } from './data';
 import { createPitcher, createPlayer, overallOf, performanceScore, pickPlayerIdentity, pickUniformNumber, pitcherQuality, retirePlayer } from './player';
 import { orderByStyle, styleForManager } from './lineup';
+import { onPlayerRetired } from './news';
 import { DB } from './state';
 import { emptyPitchLine } from './stats';
 import type { GachaResult, Manager, ManagerEffects, Player, Team } from './types';
@@ -271,6 +272,7 @@ export function retireVeterans(t: Team): { team: Team; out: Player; in: Player }
   const retiredList: { team: Team; out: Player; in: Player }[] = [];
   allPlayersOf(t).forEach((p) => {
     if (shouldRetire(p)) {
+      onPlayerRetired(p, t);
       const { incoming } = replaceWithRookie(t, p);
       retiredList.push({ team: t, out: p, in: incoming });
     }

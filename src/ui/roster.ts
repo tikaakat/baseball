@@ -108,6 +108,7 @@ function rosterDetailHTML(teamId: string): string {
       <h2 style="margin-top:2px;">${t.name}</h2>
       <div class="muted" style="font-style:italic;margin-bottom:8px;">${t.tagline}</div>
       <div class="muted">${t.wins}勝 ${t.losses}敗 ${t.ties}分　得点${t.runsFor}／失点${t.runsAgainst}</div>
+      ${(t.retiredNumbers ?? []).length ? `<div class="muted" style="margin-top:4px;">永久欠番：${t.retiredNumbers!.map((r) => `<span class="pill">${String(r.number).padStart(2, '0')} ${r.name}</span>`).join(' ')}</div>` : ''}
     </div>
   </div>
   ${managerHtml}

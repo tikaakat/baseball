@@ -17,6 +17,9 @@ export function hardResetLeague(): void {
   DB.postseason = null;
   DB.leagueNames = { ...DEFAULT_LEAGUE_NAMES };
   DB.gachaDoneThisCycle = false;
+  DB.news = [];
+  DB.records = {};
+  DB.recordNewsThisSeason = [];
 }
 
 /** シーズン移行：チーム名・選手・通算成績はそのまま、今シーズンの成績・日程・ポストシーズンを新しくする */
@@ -61,4 +64,5 @@ export function startNewSeason(): void {
   DB.schedule = createSchedule(DB.teams);
   DB.postseason = null;
   DB.gachaDoneThisCycle = false;
+  DB.recordNewsThisSeason = [];
 }

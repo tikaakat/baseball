@@ -17,6 +17,8 @@ import { choice } from '../engine/util';
 import { render } from './app';
 import { $, $$, abilityBadges, abilityShort, fmt3plain, fmtEra, gradeBadge, gradeOf } from './format';
 import { openConfirmModal } from './modal';
+import { latestNewsHTML } from './news';
+import { shareSeason } from './share';
 import { UI, resetTransientUi } from './state';
 
 const seasonDone = () => regularSeasonComplete(DB.schedule);
@@ -147,6 +149,12 @@ function scheduleHTML(): string {
     <div class="muted" style="margin-top:4px;">${myTeam.wins}勝 ${myTeam.losses}敗 ${myTeam.ties}分　（${played.length}/${mine.length} 試合消化）</div>
     ${todayHtml}
   </div>
+  ${UI.lastArchived ? `<div class="card share-card">
+    <h2>📤 第${UI.lastArchived.seasonNum}シーズンのまとめ</h2>
+    <div class="muted" style="margin-bottom:8px;">${UI.lastArchived.champion ? `優勝は${UI.lastArchived.champion}。` : ''}結果を画像にしてSNSで共有できます。</div>
+    <div class="row"><button class="btn small" data-share="last">シェアする</button><button class="btn secondary small" id="closeShareBtn">閉じる</button></div>
+  </div>` : ''}
+  ${latestNewsHTML()}
   ${upcoming || recent ? `<div class="card">
     ${upcoming ? `<h2>今後の予定</h2>${upcoming}` : ''}
     ${recent ? `<h2 style="margin-top:${upcoming ? 14 : 0}px;">最近の結果</h2>${recent}` : ''}
@@ -500,7 +508,8 @@ function confirmNewSeason(): void {
     if (!DB.gachaDoneThisCycle) gachaSwapAllTeams(null, null); // 自チームも含め、全球団を年齢・成績で自動判定
     UI.flash = '前シーズンの成績を球団史に記録しています…';
     render();
-    archiveCurrentSeason().then(() => {
+    archiveCurrentSeason().then((record) => {
+      UI.lastArchived = record;
       UI.seasonHistory = null; // 次回「球団史」タブを開いたときに再読込させる
       beginNewSeason();
       const retiredCount = (DB.lastForcedRetirements || []).length;
@@ -590,6 +599,13 @@ export function wirePlayEvents(): void {
 
   const cardsChk = $<HTMLInputElement>('#cardsChk');
   if (cardsChk) cardsChk.onchange = () => { DB.options = { ...(DB.options ?? {}), decisionCards: cardsChk.checked }; };
+  on('#closeShareBtn', () => { UI.lastArchived = null; render(); });
+  $$('[data-share]').forEach((b) => {
+    b.onclick = () => {
+      if (!UI.lastArchived) return;
+      void shareSeason(UI.lastArchived).then((msg) => { UI.flash = msg; render(); });
+    };
+  });
   on('#editLineupBtn', () => { UI.tab = 'roster'; UI.rosterTeamId = UI.myTeamId; render(); });
   on('#changeTeamBtn', () => {
     UI.myTeamId = null; UI.gachaSelecting = false; UI.gachaMySelection = null; UI.gachaResults = null;
