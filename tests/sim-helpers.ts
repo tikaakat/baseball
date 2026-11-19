@@ -1,7 +1,7 @@
-import { createSchedule } from '../src/engine/schedule';
+import { completeDaysThrough } from '../src/engine/days';
+import { createSchedule, lastDay } from '../src/engine/schedule';
 import { emptyStatLine } from '../src/engine/stats';
-import { autoSimGame, newGame } from '../src/engine/game';
-import { DB, teamById } from '../src/engine/state';
+import { DB } from '../src/engine/state';
 
 export interface LeagueSummary {
   games: number; runsPerGame: number; avg: number; obp: number; slg: number;
@@ -10,9 +10,7 @@ export interface LeagueSummary {
 
 /** 現在のスケジュールを全部自動で消化する */
 export function simWholeSeason(): void {
-  DB.schedule.forEach((g) => {
-    if (!g.played) autoSimGame(newGame(teamById(g.home)!, teamById(g.away)!, g.id));
-  });
+  completeDaysThrough(lastDay(DB.schedule));
 }
 
 export function summarizeLeague(): LeagueSummary {

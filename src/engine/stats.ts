@@ -1,9 +1,29 @@
 /* 成績の計算 */
-import type { Player, StatLine, Team } from './types';
+import type { PitchLine, Player, StatLine, Team } from './types';
 
 export function emptyStatLine(): StatLine {
   return { pa: 0, ab: 0, bb: 0, h: 0, doubles: 0, triples: 0, hr: 0, k: 0, rbi: 0, r: 0, gidp: 0, sac: 0, errors: 0, sb: 0, cs: 0 };
 }
+export function emptyPitchLine(): PitchLine {
+  return { g: 0, gs: 0, w: 0, l: 0, sv: 0, outs: 0, bf: 0, h: 0, hr: 0, bb: 0, k: 0, r: 0 };
+}
+export function accumulatePitchLine(target: PitchLine, source: Partial<PitchLine>): void {
+  (Object.keys(target) as (keyof PitchLine)[]).forEach((k) => { target[k] += source[k] || 0; });
+}
+/** 防御率（このゲームでは失点＝自責点として扱う） */
+export function eraOf(s: PitchLine): number { return s.outs > 0 ? (s.r * 27) / s.outs : Infinity; }
+export function whipOf(s: PitchLine): number { return s.outs > 0 ? ((s.h + s.bb) * 3) / s.outs : Infinity; }
+/** 投球回の表記（例：123.1） */
+export function ipOf(s: Pick<PitchLine, 'outs'>): string { return `${Math.floor(s.outs / 3)}${s.outs % 3 ? '.' + (s.outs % 3) : ''}`; }
+/** 規定投球回（チーム試合数×1.0回） */
+export function qualifyingOuts(team: Pick<Team, 'wins' | 'losses' | 'ties'>): number {
+  return (team.wins + team.losses + team.ties) * 3;
+}
+export function isQualifiedPitcher(p: Player, team: Pick<Team, 'wins' | 'losses' | 'ties'>): boolean {
+  const need = qualifyingOuts(team);
+  return !!p.pitch && need > 0 && p.pStats.outs >= need;
+}
+
 export function accumulateStatLine(target: StatLine, source: Partial<StatLine>): void {
   (Object.keys(target) as (keyof StatLine)[]).forEach((k) => { target[k] += source[k] || 0; });
 }

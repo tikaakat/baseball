@@ -60,10 +60,10 @@ export function renderStandings(): string {
     + leagueTable(LEAGUE_CODES[1], leagueName(LEAGUE_CODES[1]), 'まず①その2チーム同士の直接対決の勝率で決定。それでも並べば②勝利数の多い方を上位に', 'B');
 
   if (regularSeasonComplete(DB.schedule)) {
-    html += `<div class="card"><h2>ポストシーズン</h2><div class="muted">レギュラーシーズンが終了しました。クライマックスシリーズ・日本シリーズの進行は「試合」タブから行えます。</div></div>`;
+    html += `<div class="card"><h2>ポストシーズン</h2><div class="muted">レギュラーシーズンが終了しました。プレーオフ・ペンシルシリーズの進行は「試合」タブから行えます。</div></div>`;
   } else {
     const done = DB.schedule.filter((g) => g.played).length;
-    html += `<div class="card"><h2>ポストシーズン</h2><div class="muted">レギュラーシーズン（${done} / ${DB.schedule.length} 試合）が終わると、「試合」タブからクライマックスシリーズ・日本シリーズに進めます。</div></div>`;
+    html += `<div class="card"><h2>ポストシーズン</h2><div class="muted">レギュラーシーズン（${done} / ${DB.schedule.length} 試合）が終わると、「試合」タブからプレーオフ・ペンシルシリーズに進めます。</div></div>`;
   }
   html += headToHeadMatrixHTML();
   return html;

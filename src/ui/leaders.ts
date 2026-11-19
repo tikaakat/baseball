@@ -1,10 +1,10 @@
 /* 「個人成績」タブ */
 import { ABILITY_INFO, LEAGUE_CODES } from '../engine/data';
 import { DB, leagueName } from '../engine/state';
-import { avgOf, isQualified, obpOf, opsOf, slgOf } from '../engine/stats';
+import { avgOf, eraOf, ipOf, isQualified, isQualifiedPitcher, obpOf, opsOf, slgOf, whipOf } from '../engine/stats';
 import type { Player, Team } from '../engine/types';
 import { render } from './app';
-import { $$, fmt3, fmt3plain, nameBadge } from './format';
+import { $$, fmt3, fmt3plain, fmtEra, nameBadge } from './format';
 import { UI } from './state';
 
 interface LeaderCat { key: string; label: string; calc: (p: Player) => number; minAb: boolean }
@@ -24,7 +24,59 @@ const LEADER_CATS: LeaderCat[] = [
   { key: 'k', label: '三振(粘り不足王)', calc: (p) => p.stats.k, minAb: false },
 ];
 
+interface PitchCat { key: string; label: string; calc: (p: Player) => number; asc: boolean; qualified: boolean; fmt: (v: number) => string }
+const PITCH_CATS: PitchCat[] = [
+  { key: 'era', label: '防御率', calc: (p) => eraOf(p.pStats), asc: true, qualified: true, fmt: fmtEra },
+  { key: 'w', label: '勝利', calc: (p) => p.pStats.w, asc: false, qualified: false, fmt: String },
+  { key: 'sv', label: 'セーブ', calc: (p) => p.pStats.sv, asc: false, qualified: false, fmt: String },
+  { key: 'k', label: '奪三振', calc: (p) => p.pStats.k, asc: false, qualified: false, fmt: String },
+  { key: 'whip', label: 'WHIP', calc: (p) => whipOf(p.pStats), asc: true, qualified: true, fmt: (v) => (isFinite(v) ? v.toFixed(2) : '-') },
+];
+
+function leagueTabsHTML(leagueFilter: string): string {
+  return [
+    { key: 'ALL', label: '両リーグ' },
+    { key: LEAGUE_CODES[0], label: leagueName(LEAGUE_CODES[0]) },
+    { key: LEAGUE_CODES[1], label: leagueName(LEAGUE_CODES[1]) },
+  ].map((l) => `<button class="${leagueFilter === l.key ? 'active' : ''}" data-league="${l.key}">${l.label}</button>`).join('');
+}
+const modeTabsHTML = () => `<div class="subtabs">
+    <button class="${UI.leaderMode !== 'pitch' ? 'active' : ''}" data-leadermode="bat">打撃</button>
+    <button class="${UI.leaderMode === 'pitch' ? 'active' : ''}" data-leadermode="pitch">投手</button>
+  </div>`;
+
+function pitchingLeadersHTML(): string {
+  const cat = PITCH_CATS.find((c) => c.key === UI.pitchLeaderCat) || PITCH_CATS[0];
+  const leagueFilter = UI.leaderLeague || 'ALL';
+  let all: { p: Player; t: Team }[] = [];
+  DB.teams.forEach((t) => t.pitchers.forEach((p) => all.push({ p, t })));
+  if (leagueFilter !== 'ALL') all = all.filter((x) => x.t.league === leagueFilter);
+  if (cat.qualified) all = all.filter((x) => isQualifiedPitcher(x.p, x.t));
+  all.sort((a, b) => (cat.asc ? cat.calc(a.p) - cat.calc(b.p) : cat.calc(b.p) - cat.calc(a.p)));
+  const hl = (key: string) => (cat.key === key ? 'hl' : '');
+  const rows = all.slice(0, 10).map((x, i) => {
+    const s = x.p.pStats;
+    return `<tr><td>${i + 1}</td><td class="name">${x.p.name}<div class="muted" style="font-size:10.5px;">${x.t.name}</div></td>
+      <td class="${hl('era')}">${fmtEra(eraOf(s))}</td><td>${s.g}</td><td class="${hl('w')}">${s.w}</td><td>${s.l}</td><td class="${hl('sv')}">${s.sv}</td>
+      <td>${ipOf(s)}</td><td class="${hl('k')}">${s.k}</td><td class="${hl('whip')}">${PITCH_CATS[4].fmt(whipOf(s))}</td></tr>`;
+  }).join('');
+  const tabs = PITCH_CATS.map((c) => `<button class="${c.key === cat.key ? 'active' : ''}" data-pcat="${c.key}">${c.label}</button>`).join('');
+  return `
+  <div class="card">
+    <h2>個人成績ランキング</h2>
+    ${modeTabsHTML()}
+    <div class="subtabs">${leagueTabsHTML(leagueFilter)}</div>
+    <div class="subtabs">${tabs}</div>
+    <div class="muted" style="margin-bottom:6px;">並び順：${cat.label}${cat.qualified ? '／規定投球回（チーム試合数×1回）以上が対象' : ''}</div>
+    <div class="table-scroll"><table>
+      <thead><tr><th>順位</th><th>投手</th><th>防御率</th><th>登板</th><th>勝</th><th>敗</th><th>S</th><th>回</th><th>三振</th><th>WHIP</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="10" class="muted">まだ対象の投手がいません。</td></tr>'}</tbody>
+    </table></div>
+  </div>`;
+}
+
 export function renderLeaders(): string {
+  if (UI.leaderMode === 'pitch') return pitchingLeadersHTML();
   const cat = LEADER_CATS.find((c) => c.key === UI.leaderCat) || LEADER_CATS[0];
   const leagueFilter = UI.leaderLeague || 'ALL';
   let all: { p: Player; t: Team }[] = [];
@@ -53,15 +105,12 @@ export function renderLeaders(): string {
     </tr>`).join('');
 
   const tabs = LEADER_CATS.map((c) => `<button class="${c.key === cat.key ? 'active' : ''}" data-cat="${c.key}">${c.label}</button>`).join('');
-  const leagueTabs = [
-    { key: 'ALL', label: '両リーグ' },
-    { key: LEAGUE_CODES[0], label: leagueName(LEAGUE_CODES[0]) },
-    { key: LEAGUE_CODES[1], label: leagueName(LEAGUE_CODES[1]) },
-  ].map((l) => `<button class="${leagueFilter === l.key ? 'active' : ''}" data-league="${l.key}">${l.label}</button>`).join('');
+  const leagueTabs = leagueTabsHTML(leagueFilter);
 
   return `
   <div class="card">
     <h2>個人成績ランキング</h2>
+    ${modeTabsHTML()}
     <div class="subtabs">${leagueTabs}</div>
     <div class="subtabs">${tabs}</div>
     <div class="muted" style="margin-bottom:6px;">並び順：${cat.label}（${leagueFilter === 'ALL' ? '両リーグ合算' : leagueName(leagueFilter) + 'のみ'}）　${cat.minAb ? '／規定打席（チーム試合数×3.1）以上が対象' : ''}</div>
@@ -77,6 +126,12 @@ export function renderLeaders(): string {
 export function wireLeaderEvents(): void {
   $$('[data-cat]').forEach((b) => {
     b.onclick = () => { UI.leaderCat = b.dataset.cat!; render(); };
+  });
+  $$('[data-leadermode]').forEach((b) => {
+    b.onclick = () => { UI.leaderMode = b.dataset.leadermode as 'bat' | 'pitch'; render(); };
+  });
+  $$('[data-pcat]').forEach((b) => {
+    b.onclick = () => { UI.pitchLeaderCat = b.dataset.pcat!; render(); };
   });
   $$('[data-league]').forEach((b) => {
     b.onclick = () => { UI.leaderLeague = b.dataset.league!; render(); };

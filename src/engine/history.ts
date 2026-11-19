@@ -1,5 +1,5 @@
 /* 球団史（過去シーズンの記録）の保存・読み込み */
-import { computeBestNine, computeGoldenGlove, computePostseasonMVP, computeRookieOfYear, computeSeasonLeaders, computeSeasonMVP } from './awards';
+import { computeBestNine, computeBestPitcher, computeGoldenGlove, computePitchingLeaders, computePostseasonMVP, computeRookieOfYear, computeSeasonLeaders, computeSeasonMVP } from './awards';
 import { finalizeStandings } from './standings';
 import { DB, leagueName } from './state';
 import { kvGet, kvRemove, kvSet } from './storage';
@@ -64,6 +64,8 @@ export async function archiveCurrentSeason(): Promise<SeasonRecord> {
     bestNine: computeBestNine(),
     rookieOfYear: computeRookieOfYear(),
     goldenGlove: computeGoldenGlove(),
+    pitchingLeaders: computePitchingLeaders(),
+    bestPitcher: computeBestPitcher(),
   };
   history.push(record);
   const saved = await saveSeasonHistory(history);

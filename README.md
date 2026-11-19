@@ -26,7 +26,8 @@ src/
     player.ts      選手の生成・成長・退団
     team.ts        ロースター・打順・監督・ガチャ・引退
     schedule.ts    日程（1日6試合×144日）
-    days.ts        日ごとの試合消化
+    days.ts        日ごとの試合消化（15日ごとに投手陣を見直す）
+    pitching.ts    投手（先発ローテ・疲労・継投AI・勝敗とセーブ）
     standings.ts   順位表
     postseason.ts  クライマックスシリーズ・日本シリーズ
     awards.ts      表彰

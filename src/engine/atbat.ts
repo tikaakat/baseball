@@ -4,6 +4,7 @@
  * 鉛筆を振った後に結果が変わるのは、走力による長打の上積み・特殊能力・失策だけ。
  */
 import { TUNING } from './data';
+import { currentPitcher, fatigueOf } from './pitching';
 import { pickWeightedFielderForError } from './player';
 import { managerEffects } from './team';
 import type { AbilityKey, Bases, ContactResult, Game, Outcome, P1Face, P2Face, Play, Player } from './types';
@@ -44,10 +45,29 @@ export function pencilsFor(batter: Player, game: Game | null): Pencils {
   const dbl = T.p2.double.base + T.p2.double.contact * c;
   const outs2 = Math.max(0, 1 - hr - dbl - T.p2.k);
 
-  return {
+  const base: Pencils = {
     p1: { hit, walk, k, otto, flyout: outs1 * fly1, groundout: outs1 * (1 - fly1) },
     p2: { double: dbl, hr, k: T.p2.k, flyout: outs2 * T.p2.flyShare, groundout: outs2 * (1 - T.p2.flyShare) },
   };
+  return game ? applyPitcher(base, game) : base;
+}
+
+/** 投手が打者の鉛筆を書き換える（球威・制球・疲労）。凡打の面で帳尻を合わせる */
+function applyPitcher(pc: Pencils, game: Game): Pencils {
+  const pitcher = currentPitcher(game);
+  if (!pitcher?.pitch) return pc;
+  const s = frac(pitcher.pitch.stuff) - 0.5, c = frac(pitcher.pitch.control) - 0.5;
+  const f = fatigueOf(game, game.half === 'top' ? 'home' : 'away');
+  const P = TUNING.pitcher;
+  const m = (x: { stuff?: number; control?: number; fatigue?: number }) =>
+    Math.max(0.05, 1 + (x.stuff ?? 0) * s + (x.control ?? 0) * c + (x.fatigue ?? 0) * f);
+  const p1 = { ...pc.p1, hit: pc.p1.hit * m(P.hit), otto: pc.p1.otto * m(P.otto), k: pc.p1.k * m(P.k), walk: pc.p1.walk * m(P.walk) };
+  const p2 = { ...pc.p2, hr: pc.p2.hr * m(P.hr), double: pc.p2.double * m(P.double) };
+  const refill1 = Math.max(0, 1 - p1.hit - p1.otto - p1.k - p1.walk), out1 = pc.p1.flyout + pc.p1.groundout || 1;
+  const refill2 = Math.max(0, 1 - p2.hr - p2.double - p2.k), out2 = pc.p2.flyout + pc.p2.groundout || 1;
+  p1.flyout = refill1 * (pc.p1.flyout / out1); p1.groundout = refill1 * (pc.p1.groundout / out1);
+  p2.flyout = refill2 * (pc.p2.flyout / out2); p2.groundout = refill2 * (pc.p2.groundout / out2);
+  return { p1, p2 };
 }
 
 export function rollPencil1(pencils: Pencils): P1Face { return weightedChoice(pencils.p1); }
@@ -221,7 +241,7 @@ export function finalizeAtBat(batter: Player, p1: P1Face, p2: P2Face | null, bas
     gidpResist = managerEffects(game[battingKey].manager).gidpResist || 0;
     errorMult = managerEffects(game[fieldingKey].manager).errorReduction || 1;
     // 守備力：野手陣の平均守備力が高いほど失策が起きにくい（最低で1.5倍、最高で0.6倍）
-    const roster = game[fieldingKey].roster;
+    const roster = game[fieldingKey].battingOrder;
     if (roster.length) errorMult *= 1.5 - frac(roster.reduce((s, p) => s + (p.defense || 128), 0) / roster.length) * 0.9;
 
     isFirstPaThisGame = !game.battedThisGame.has(batter.id);
@@ -284,8 +304,8 @@ export function finalizeAtBat(batter: Player, p1: P1Face, p2: P2Face | null, bas
   // 失策：ゴロ・フライのアウトが、まれに相手の失策で出塁に変わる（守備力の低い野手ほどやらかしやすい）
   let errorFielder: Player | null = null;
   if ((result === 'groundout' || result === 'flyout') && Math.random() < TUNING.errorRate * errorMult) {
-    const roster = game ? game[fieldingKeyOf(game)].roster : [];
-    errorFielder = roster.length ? pickWeightedFielderForError(roster) : null;
+    const fielders = game ? game.lineup[fieldingKeyOf(game)].map((id) => game[fieldingKeyOf(game)].roster.find((p) => p.id === id)).filter((p): p is Player => !!p) : [];
+    errorFielder = fielders.length ? pickWeightedFielderForError(fielders) : null;
     if (errorFielder?.ability === 'defenseAce' && Math.random() < 0.5) {
       // 守備の達人：自分の失策を好プレーで防ぐ
       abilityNote = `${errorFielder.name}の好守備！失策を防いだ`; abilityKey = 'defenseAce';

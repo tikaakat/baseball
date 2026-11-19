@@ -1,19 +1,20 @@
 /* 「試合」タブ：マイチーム選択・日程・試合画面・ポストシーズン・オフシーズンガチャ */
 import { currentBattingKey, emptyBases, pencilsFor, pencilSummary } from '../engine/atbat';
-import { ABILITY_INFO, FACE_LABEL, P1_FACES, P2_FACES, SERIES_KEYS } from '../engine/data';
-import { autoSimGame, currentBatter, newGame, rollStep } from '../engine/game';
+import { ABILITY_INFO, FACE_LABEL, P1_FACES, P2_FACES, POSTSEASON_NAMES, SERIES_KEYS } from '../engine/data';
+import { autoSimGame, currentBatter, fieldersOf, newGame, rollStep } from '../engine/game';
+import { currentPitcher, fatigueOf, findPlayer } from '../engine/pitching';
 import { ArchiveError, archiveCurrentSeason } from '../engine/history';
 import { autoCompletePostseason, progressPostseason, startPostseason } from '../engine/postseason';
 import { currentDay, lastDay, regularSeasonComplete } from '../engine/schedule';
 import { completeDaysThrough, simulateDays, simulateScheduleGame } from '../engine/days';
 import { startNewSeason } from '../engine/season';
 import { DB, leagueName, teamById } from '../engine/state';
-import { opsOf } from '../engine/stats';
-import { gachaSwapAllTeams, worstPerformer } from '../engine/team';
+import { eraOf, ipOf, opsOf } from '../engine/stats';
+import { gachaCandidates, gachaSwapAllTeams, worstPerformer } from '../engine/team';
 import type { Game, Player, ScheduleGame, Series, SeriesKey } from '../engine/types';
 import { choice } from '../engine/util';
 import { render } from './app';
-import { $, $$, fmt3plain, gradeBadge, gradeOf } from './format';
+import { $, $$, abilityBadges, abilityShort, fmt3plain, fmtEra, gradeBadge, gradeOf } from './format';
 import { openConfirmModal } from './modal';
 import { UI, resetTransientUi } from './state';
 
@@ -55,7 +56,7 @@ function gachaHTML(): string {
             <span class="gacha-arrow">→</span>
             <span class="gacha-in">★NEW★ ${r.in.name}(${r.in.pos}・${r.in.age}歳)${r.in.ability ? `<span class="pill" style="margin-left:4px;">${ABILITY_INFO[r.in.ability].label}</span>` : ''}</span>
           </div>
-          <div class="muted" style="font-size:10.5px;">パワー${gradeBadge(r.in.power)}　ミート${gradeBadge(r.in.contact)}　走力${gradeBadge(r.in.speed)}</div>
+          <div class="muted" style="font-size:10.5px;">${abilityBadges(r.in)}</div>
         </div>`;
     }).join('');
     const swappedCount = UI.gachaResults.filter((r) => !r.skipped).length;
@@ -71,13 +72,13 @@ function gachaHTML(): string {
   if (UI.gachaSelecting) {
     const myTeam = teamById(UI.myTeamId!)!;
     // 選択済みIDが現在のロースターに存在しない場合は安全にデフォルトへ戻す
-    if (UI.gachaMySelection !== '__skip__' && !myTeam.roster.some((p) => p.id === UI.gachaMySelection)) {
+    const selectablePlayers = gachaCandidates(myTeam);
+    if (UI.gachaMySelection !== '__skip__' && !selectablePlayers.some((p) => p.id === UI.gachaMySelection)) {
       UI.gachaMySelection = worstPerformer(myTeam).id;
     }
-    const eligibleForMe = myTeam.roster.filter((p) => !(p.gachaImmunitySeasons > 0));
-    const selectablePlayers = eligibleForMe.length >= 2 ? eligibleForMe : myTeam.roster;
-    const protectedCount = myTeam.roster.length - selectablePlayers.length;
-    const opts = selectablePlayers.map((p) => `<option value="${p.id}" ${UI.gachaMySelection === p.id ? 'selected' : ''}>${p.pos} ${p.name}・${p.age}歳（P${gradeOf(p.power)}/C${gradeOf(p.contact)}/S${gradeOf(p.speed)}／${p.stats.ab >= 10 ? 'OPS' + fmt3plain(opsOf(p)) : '出場少'}）</option>`).join('')
+    const protectedCount = myTeam.roster.length + myTeam.pitchers.length - selectablePlayers.length;
+    const perf = (p: Player) => (p.pitch ? (p.pStats.outs >= 30 ? '防御率' + fmtEra(eraOf(p.pStats)) : '登板少') : (p.stats.ab >= 10 ? 'OPS' + fmt3plain(opsOf(p)) : '出場少'));
+    const opts = selectablePlayers.map((p) => `<option value="${p.id}" ${UI.gachaMySelection === p.id ? 'selected' : ''}>${p.pos} ${p.name}・${p.age}歳（${abilityShort(p)}／${perf(p)}）</option>`).join('')
       + `<option value="__skip__" ${UI.gachaMySelection === '__skip__' ? 'selected' : ''}>――今回は誰も放出しない――</option>`;
     return `<div class="card">
         <h2>放出する選手を選択（${myTeam.name}）</h2>
@@ -192,12 +193,12 @@ function postseasonSectionHTML(): string {
   if (!ps) {
     return `<div class="card">
       <div class="muted" style="margin-bottom:8px;">ポストシーズンは、ここから1試合ずつ「観る」または「自動」で進めます（「試合」カードの一括自動シミュレートボタンでもまとめて消化できます）。</div>
-      <button class="btn" id="startPostseasonBtn">クライマックスシリーズを開始</button>
+      <button class="btn" id="startPostseasonBtn">プレーオフを開始</button>
     </div>`;
   }
   let html = SERIES_KEYS.map((key) => seriesCard(key, ps.series[key])).join('');
   if (ps.champion) {
-    html += `<div class="finish-banner"><div>日本一</div><div class="score">${ps.champion.name}</div></div>`;
+    html += `<div class="finish-banner"><div>${POSTSEASON_NAMES.final} 優勝</div><div class="score">${ps.champion.name}</div></div>`;
   }
   return html;
 }
@@ -242,11 +243,22 @@ function pencilBarsHTML(batter: Player, game: Game): string {
   return `<div class="pencil-bars"><div class="pencil-title">${batter.name}の鉛筆</div>${bar('1本目', p1)}${bar('2本目', p2)}<div class="pencil-legend">${legend}</div></div>`;
 }
 
+/** 守っている投手（能力と疲れ具合） */
+function pitcherLineHTML(game: Game): string {
+  const side = game.half === 'top' ? 'home' : 'away';
+  const p = currentPitcher(game, side);
+  if (!p?.pitch) return '';
+  const f = fatigueOf(game, side);
+  const box = game.pbox[p.id];
+  const tired = f >= 0.6 ? 'ばてばて' : f >= 0.25 ? '疲れ気味' : '元気';
+  return `<div class="pitcher-line">投手 <b>${p.name}</b> 球威${gradeOf(p.pitch.stuff)} 制球${gradeOf(p.pitch.control)}　<span class="${f >= 0.25 ? 'tired' : ''}">${tired}</span><span class="muted">（${box ? box.bf : 0}人目）</span></div>`;
+}
+
 /** ボックススコア（試合の個人打撃成績） */
 function boxScoreHTML(game: Game): string {
   const table = (side: 'away' | 'home') => {
     const team = game[side];
-    const rows = team.battingOrder.map((p, i) => {
+    const rows = fieldersOf(game, side).map((p, i) => {
       const b = game.box[p.id] ?? { pa: 0, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, k: 0, r: 0, sb: 0 };
       const hot = b.h >= 3 || b.hr >= 1 || b.rbi >= 3;
       return `<tr class="${hot ? 'hot' : ''}"><td>${i + 1}</td><td class="name">${p.name}<span class="muted" style="font-size:9px;">(${p.pos})</span></td><td>${b.ab}</td><td>${b.h}</td><td>${b.rbi}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.sb}</td></tr>`;
@@ -254,7 +266,17 @@ function boxScoreHTML(game: Game): string {
     return `<div class="box-team">${team.name}</div>
       <table class="compact-table box"><thead><tr><th></th><th class="namehead">選手</th><th>打</th><th>安</th><th>点</th><th>本</th><th>四</th><th>三</th><th>盗</th></tr></thead><tbody>${rows}</tbody></table>`;
   };
-  return `<details class="howto" open><summary>ボックススコア</summary>${table('away')}${table('home')}</details>`;
+  const pitchTable = (side: 'away' | 'home') => {
+    const rows = game.pitchersUsed[side].map((id) => {
+      const p = findPlayer(game[side], id);
+      const b = game.pbox[id];
+      if (!p || !b) return '';
+      const dec = b.dec ? `<span class="pill ${b.dec === 'L' ? 'lose' : 'win'}" style="margin-left:4px;">${{ W: '勝', L: '敗', S: 'S' }[b.dec]}</span>` : '';
+      return `<tr><td class="name">${p.name}${dec}</td><td>${ipOf(b)}</td><td>${b.bf}</td><td>${b.h}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.r}</td></tr>`;
+    }).join('');
+    return `<table class="compact-table box" style="margin-top:6px;"><thead><tr><th class="namehead">投手</th><th>回</th><th>打者</th><th>安</th><th>本</th><th>四</th><th>三</th><th>失</th></tr></thead><tbody>${rows}</tbody></table>`;
+  };
+  return `<details class="howto" open><summary>ボックススコア</summary>${table('away')}${pitchTable('away')}${table('home')}${pitchTable('home')}</details>`;
 }
 
 function playScreenHTML(game: Game): string {
@@ -318,6 +340,7 @@ function playScreenHTML(game: Game): string {
         <div class="nm"><span class="pos">${batter.pos}</span>${batter.name}<span class="muted" style="font-size:10.5px;font-weight:400;">　${game[battingKey].name}</span></div>
         <div class="stats">パワー${gradeBadge(batter.power)} ミート${gradeBadge(batter.contact)} 走力${gradeBadge(batter.speed)}${batter.ability ? `<span class="pill" style="margin-left:4px;">${ABILITY_INFO[batter.ability].label}</span>` : ''}</div>
         <div class="runners-text">${runnerText}</div>
+        ${pitcherLineHTML(game)}
       </div>` : ''}
     </div>
     ${batter ? pencilBarsHTML(batter, game) : ''}

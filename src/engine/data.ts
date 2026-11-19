@@ -12,20 +12,32 @@ export const SURNAMES = ['鈴木', '佐藤', '高橋', '田中', '伊藤', '渡�
   '小野', '田村', '高野', '河野', '藤本', '山下', '石田', '大西', '菅原', '浜田',
   '杉山', '小島', '平野', '久保', '星野', '荒木', '岩崎', '堀', '秋山', '本田'];
 
+/** 架空の12球団（文房具がモチーフ） */
 export const TEAM_DEFS = [
-  { name: '東京ジャイアンツ', league: 'E', tagline: '削れば削るほど、鋭くなる。' },
-  { name: '横浜ブルーオーシャンズ', league: 'E', tagline: '転がっても、狙いは外さない。' },
-  { name: '新潟アルビレックス', league: 'E', tagline: '白と黒、決着は芯の硬さで。' },
-  { name: '仙台アークナイツ', league: 'E', tagline: '薄く、硬く、正確に。' },
-  { name: '札幌シャイニングス', league: 'E', tagline: '木の香りと共に、一振り。' },
-  { name: '甲府モンキーズ', league: 'E', tagline: '丸くても、まっすぐ飛ぶ。' },
-  { name: '大阪バファローズ', league: 'W', tagline: '間違いも、なかったことに。' },
-  { name: '京都フラワーピース', league: 'W', tagline: '下から支える、静かな強さ。' },
-  { name: '博多ホークス', league: 'W', tagline: 'カチッと一押し、芯が出る。' },
-  { name: '神戸スパーズ', league: 'W', tagline: '黒鉛が導く、静かな連携。' },
-  { name: '広島レッドドラゴンズ', league: 'W', tagline: '蓋をして、また明日。' },
-  { name: '名古屋ウィングス', league: 'W', tagline: '折れても、また削ればいい。' },
+  { name: '東京シャープナーズ', league: 'E', tagline: '削れば削るほど、鋭くなる。' },
+  { name: '横浜ヘキサゴンズ', league: 'E', tagline: '転がっても、狙いは外さない。' },
+  { name: '新潟エイチビーズ', league: 'E', tagline: '白と黒、決着は芯の硬さで。' },
+  { name: '仙台ルーラーズ', league: 'E', tagline: '薄く、硬く、正確に。' },
+  { name: '札幌シダーズ', league: 'E', tagline: '木の香りと共に、一振り。' },
+  { name: '甲府ラウンダーズ', league: 'E', tagline: '丸くても、まっすぐ飛ぶ。' },
+  { name: '大阪イレーサーズ', league: 'W', tagline: '間違いも、なかったことに。' },
+  { name: '京都シタジキーズ', league: 'W', tagline: '下から支える、静かな強さ。' },
+  { name: '福岡ノッカーズ', league: 'W', tagline: 'カチッと一押し、芯が出る。' },
+  { name: '神戸グラファイツ', league: 'W', tagline: '黒鉛が導く、静かな連携。' },
+  { name: '広島ペンキャップス', league: 'W', tagline: '蓋をして、また明日。' },
+  { name: '名古屋スペアーズ', league: 'W', tagline: '折れても、また削ればいい。' },
 ];
+/** 旧版のチーム名（保存データの移行用。ユーザーが変更していなければ新しい名前に置き換える） */
+export const LEGACY_TEAM_NAMES = ['東京ジャイアンツ', '横浜ブルーオーシャンズ', '新潟アルビレックス', '仙台アークナイツ', '札幌シャイニングス', '甲府モンキーズ',
+  '大阪バファローズ', '京都フラワーピース', '博多ホークス', '神戸スパーズ', '広島レッドドラゴンズ', '名古屋ウィングス'];
+
+/** ポストシーズンの名称 */
+export const POSTSEASON_NAMES = { firstStage: 'プレーオフ ファーストステージ', finalStage: 'プレーオフ ファイナルステージ', final: 'ペンシルシリーズ' };
+
+/** 野手の控え（守備位置の表記） */
+export const BENCH_POSITIONS = ['捕', '内', '内', '外'];
+/** 投手陣の人数 */
+export const STAFF_SIZE = { rotation: 6, bullpen: 7 }; // NPB同様の6人ローテーション
 /** チーム定義から実際のリーグコードを取得（[0]=イースト, [1]=ウエスト） */
 export const LEAGUE_CODES = [...new Set(TEAM_DEFS.map((d) => d.league))];
 export const DEFAULT_LEAGUE_NAMES: Record<string, string> = { E: 'イーストリーグ', W: 'ウエストリーグ' };
@@ -157,7 +169,7 @@ export const SERIES_KEYS = ['H1', 'B1', 'H2', 'B2', 'JS'] as const;
 export const TUNING = {
   /** 1本目の鉛筆 */
   p1: {
-    hit: { base: 0.148, contact: 0.042 },        // ヒット = base + contact×c
+    hit: { base: 0.138, contact: 0.042 },        // ヒット = base + contact×c
     walk: 0.082,
     k: { base: 0.195, contact: -0.08, power: 0.03 },
     otto: { base: 0.165, power: 0.075 },         // おっと（2本目へ）
@@ -165,7 +177,7 @@ export const TUNING = {
   },
   /** 2本目の鉛筆（おっと時） */
   p2: {
-    hr: { base: 0.016, power: 0.165 },            // HR = base + power×pw²（パワーが高いほど急に伸びる）
+    hr: { base: 0.014, power: 0.145 },            // HR = base + power×pw²（パワーが高いほど急に伸びる）
     double: { base: 0.15, contact: 0.04 },
     k: 0.16,
     flyShare: 0.5,
@@ -192,4 +204,18 @@ export const TUNING = {
   errorRate: 0.026,
   /** 延長の上限（NPB同様。これを超えたら引き分け） */
   maxInnings: 12,
+  /**
+   * 投手が打者の鉛筆を書き換える係数。s=球威, c=制球（いずれも平均0、−0.5〜+0.5）、f=疲労（0〜1）
+   * 各面の確率に (1 + 係数×値) を掛け、残りを凡打に回す
+   */
+  pitcher: {
+    hit: { stuff: -0.34, fatigue: 0.25 },
+    otto: { stuff: -0.22, fatigue: 0.25 },
+    k: { stuff: 0.60, fatigue: -0.25 },
+    walk: { control: -0.70, fatigue: 0.30 },
+    hr: { stuff: -0.20, control: -0.35, fatigue: 0.30 },
+    double: { stuff: -0.15, fatigue: 0.15 },
+  },
+  /** 投手が疲れずに投げられる打者数（先発・救援）。超えると疲労がたまる */
+  stamina: { starterBase: 17, starterRange: 11, relieverBase: 4, relieverRange: 6, fatigueSpan: 9 },
 } as const;

@@ -19,7 +19,7 @@ export function openEditPlayerModal(playerId: string): void {
   const found = playerById(playerId);
   if (!found) return;
   const p = found.player;
-  UI.modal = { type: 'editPlayer', playerId, name: p.name, age: p.age, power: p.power, contact: p.contact, speed: p.speed, ability: p.ability || '' };
+  UI.modal = { type: 'editPlayer', playerId, name: p.name, age: p.age, power: p.power, contact: p.contact, speed: p.speed, ability: p.ability || '', pitch: p.pitch ? { ...p.pitch } : null };
   render();
 }
 export function openConfirmModal(message: string, onConfirm: () => void): void {
@@ -75,10 +75,14 @@ export function modalHTML(): string {
       <input type="text" id="editPlayerName" value="${escapeAttr(m.name)}" maxlength="12">
       <label>年齢</label>
       <input type="text" id="editPlayerAge" value="${escapeAttr(String(m.age))}" maxlength="3">
+      ${m.pitch ? `
+      <label>球威</label>${gradeSelectHTML('editPitchStuff', m.pitch.stuff)}
+      <label>制球</label>${gradeSelectHTML('editPitchControl', m.pitch.control)}
+      <label>スタミナ</label>${gradeSelectHTML('editPitchStamina', m.pitch.stamina)}` : `
       <label>パワー</label>${gradeSelectHTML('editPlayerPower', m.power)}
       <label>ミート</label>${gradeSelectHTML('editPlayerContact', m.contact)}
       <label>走力</label>${gradeSelectHTML('editPlayerSpeed', m.speed)}
-      <label>特殊能力</label>${abilitySelectHTML(m.ability)}
+      <label>特殊能力</label>${abilitySelectHTML(m.ability)}`}
       ${buttons('modalSave', '保存')}`;
       break;
   }
@@ -132,6 +136,11 @@ export function wireModalEvents(): void {
         const ageStr = inputValue('#editPlayerAge');
         if (ageStr !== null) { const a = parseInt(ageStr, 10); if (a >= 15 && a <= 50) p.age = a; }
         const grade = (sel: string) => GRADE_MID[inputValue(sel) ?? ''];
+        if (p.pitch) {
+          if (grade('#editPitchStuff')) p.pitch.stuff = grade('#editPitchStuff');
+          if (grade('#editPitchControl')) p.pitch.control = grade('#editPitchControl');
+          if (grade('#editPitchStamina')) p.pitch.stamina = grade('#editPitchStamina');
+        }
         if (grade('#editPlayerPower')) p.power = grade('#editPlayerPower');
         if (grade('#editPlayerContact')) p.contact = grade('#editPlayerContact');
         if (grade('#editPlayerSpeed')) p.speed = grade('#editPlayerSpeed');

@@ -1,7 +1,7 @@
 /* 選手の生成・成長・退団 */
 import { FOREIGN_NAMES, FOREIGN_PLAYER_RATE, GIVEN_NAMES, GROWTH_PEAK, ROOKIE_AGE, ROOKIE_MAX_STAT, SURNAMES } from './data';
 import { DB } from './state';
-import { accumulateStatLine, emptyStatLine, opsOfStats } from './stats';
+import { accumulatePitchLine, accumulateStatLine, emptyPitchLine, emptyStatLine, eraOf, opsOfStats } from './stats';
 import type { GrowthType, Player, Team } from './types';
 import { choice, frac, randInt } from './util';
 
@@ -41,8 +41,13 @@ export function applyAging(p: Player): void {
   else if (dist <= 8) { changeChance = 0.65; direction = -1; magnitude = randInt(8, 20); }       // はっきり衰える
   else { changeChance = 0.8; direction = -1; magnitude = randInt(15, 30); }                      // ベテラン：大きく衰える
   if (Math.random() < changeChance) {
-    const stat = choice(['power', 'contact', 'speed'] as const);
-    p[stat] = Math.max(1, Math.min(256, p[stat] + direction * magnitude));
+    if (p.pitch) {
+      const stat = choice(['stuff', 'control', 'stamina'] as const);
+      p.pitch[stat] = Math.max(1, Math.min(256, p.pitch[stat] + direction * magnitude));
+    } else {
+      const stat = choice(['power', 'contact', 'speed'] as const);
+      p[stat] = Math.max(1, Math.min(256, p[stat] + direction * magnitude));
+    }
   }
 }
 
@@ -62,7 +67,29 @@ export function createPlayer(pos: string | null, identity?: PlayerIdentity, youn
     seasonsPlayed: 0,
     psStats: emptyStatLine(), // 直近のポストシーズン成績
     gachaImmunitySeasons: youngProspect ? 2 : 0, // ガチャ加入直後の2年間は再放出の対象から保護
+    pitch: null,
+    pStats: emptyPitchLine(),
+    pCareer: emptyPitchLine(),
+    psPStats: emptyPitchLine(),
   };
+}
+
+/** 投手を作る（DH制なので打撃能力は低めのダミー値） */
+export function createPitcher(identity?: PlayerIdentity, youngProspect = false, debutSeasonOverride?: number): Player {
+  const p = createPlayer('投', identity, youngProspect, debutSeasonOverride);
+  const maxStat = youngProspect ? ROOKIE_MAX_STAT : 256;
+  p.pitch = { stuff: randInt(1, maxStat), control: randInt(1, maxStat), stamina: randInt(1, maxStat) };
+  p.power = randInt(1, 40); p.contact = randInt(1, 40); p.speed = randInt(1, 80);
+  return p;
+}
+
+/** 能力の総合値（野手はパワー・ミート・走力、投手は球威・制球・スタミナの平均） */
+export function overallOf(p: Player): number {
+  return p.pitch ? (p.pitch.stuff + p.pitch.control + p.pitch.stamina) / 3 : (p.power + p.contact + p.speed) / 3;
+}
+/** 投手の質（先発・救援の序列づけ用。球威と制球を重視） */
+export function pitcherQuality(p: Player): number {
+  return p.pitch ? p.pitch.stuff * 0.5 + p.pitch.control * 0.4 + p.pitch.stamina * 0.1 : 0;
 }
 
 /** 背番号（00〜99）をチーム内で重複しないように割り振る */
@@ -76,6 +103,11 @@ export function pickUniformNumber(excludeNumbers: (number | null)[] = []): numbe
 
 /** 実績があればOPS、出場が少なければ基礎能力（0〜1スケール）で評価 */
 export function performanceScore(p: Player): number {
+  if (p.pitch) {
+    // 投手は防御率をOPSに近いスケールへ（防御率3.50 ≒ .700）
+    if (p.pStats.outs >= 30) return 2.45 / Math.max(1, eraOf(p.pStats));
+    return (frac(p.pitch.stuff) + frac(p.pitch.control) + frac(p.pitch.stamina)) / 3;
+  }
   if (p.stats.ab >= 10) return opsOfStats(p.stats);
   return (frac(p.power) + frac(p.contact) + frac(p.speed)) / 3;
 }
@@ -84,6 +116,10 @@ export function resetPlayerForNewSeason(p: Player): void {
   accumulateStatLine(p.career, p.stats);
   p.stats = emptyStatLine();
   p.psStats = emptyStatLine();
+  accumulatePitchLine(p.pCareer, p.pStats);
+  p.pStats = emptyPitchLine();
+  p.psPStats = emptyPitchLine();
+  p.recentDays = [];
   p.seasonsPlayed = (p.seasonsPlayed || 0) + 1;
   p.gachaImmunitySeasons = Math.max(0, (p.gachaImmunitySeasons || 0) - 1);
   applyAging(p);
@@ -94,10 +130,14 @@ export function retirePlayer(team: Team, player: Player): void {
   const totalCareer = emptyStatLine();
   accumulateStatLine(totalCareer, player.career);
   accumulateStatLine(totalCareer, player.stats);
+  const pCareer = emptyPitchLine();
+  accumulatePitchLine(pCareer, player.pCareer);
+  accumulatePitchLine(pCareer, player.pStats);
   if (!team.alumni) team.alumni = [];
   team.alumni.push({
     name: player.name, pos: player.pos, age: player.age,
-    seasonsPlayed: (player.seasonsPlayed || 0) + (player.stats.pa > 0 ? 1 : 0),
+    isPitcher: !!player.pitch, pCareer,
+    seasonsPlayed: (player.seasonsPlayed || 0) + (player.stats.pa > 0 || player.pStats.bf > 0 ? 1 : 0),
     debutSeason: player.debutSeason || 1, lastSeason: DB.currentSeasonNum || 1,
     career: totalCareer,
     awards: Object.assign({ mvp: 0, bestNine: 0, psMvp: 0, rookie: 0, goldenGlove: 0 }, player.awards || {}),

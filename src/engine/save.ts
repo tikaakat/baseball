@@ -3,7 +3,9 @@
  * 打順・塁上の走者・シリーズの対戦チームなどはオブジェクト参照なので、保存時はIDに置き換え、
  * 復元時にロースターの実体へ結び直す。
  */
+import { LEGACY_TEAM_NAMES, TEAM_DEFS } from './data';
 import { getPlayerSeq, setPlayerSeq } from './player';
+import { allPlayersOf, upgradeTeam } from './team';
 import { DB } from './state';
 import { kvGet, kvRemove, kvSet } from './storage';
 import type { Bases, DBState, Game, Player, Postseason, Series, SeriesKey, Team } from './types';
@@ -106,11 +108,17 @@ function must<T>(x: T | undefined | null, what: string): T {
 export function restoreState(data: SaveData): { myTeamId: string | null; liveGame: Game | null } {
   if (!data || data.version !== SAVE_VERSION) throw new SaveFormatError('保存データの形式が違います');
 
+  setPlayerSeq(data.playerSeq); // 旧データの移行で選手を追加するときに番号が重ならないよう先に戻す
   const playerMap = new Map<Id, Player>();
   const teams: Team[] = data.db.teams.map((st) => {
-    st.roster.forEach((p) => playerMap.set(p.id, p));
     const byId = new Map(st.roster.map((p) => [p.id, p] as const));
-    return { ...st, battingOrder: st.battingOrder.map((id) => must(byId.get(id), `打順 ${id}`)) };
+    const t: Team = { ...st, battingOrder: st.battingOrder.map((id) => must(byId.get(id), `打順 ${id}`)) };
+    upgradeTeam(t); // 旧版：控え野手・投手陣を追加
+    // 旧版の既定チーム名（実在球団に近い名前）は、変更されていなければ新しい架空の名前にする
+    const idx = Number(t.id.slice(1));
+    if (LEGACY_TEAM_NAMES[idx] && t.name === LEGACY_TEAM_NAMES[idx] && TEAM_DEFS[idx]) t.name = TEAM_DEFS[idx].name;
+    allPlayersOf(t).forEach((p) => playerMap.set(p.id, p));
+    return t;
   });
   const teamMap = new Map(teams.map((t) => [t.id, t] as const));
   const team = (id: Id) => must(teamMap.get(id), `チーム ${id}`);
@@ -135,7 +143,7 @@ export function restoreState(data: SaveData): { myTeamId: string | null; liveGam
 
   let liveGame: Game | null = null;
   const sg = data.ui.liveGame;
-  if (sg) {
+  if (sg && sg.lineup && sg.pitcher) { // 投手導入前の旧版で観戦中だった試合は引き継がない（日程からやり直し）
     liveGame = {
       ...sg,
       home: team(sg.home), away: team(sg.away),
@@ -157,7 +165,6 @@ export function restoreState(data: SaveData): { myTeamId: string | null; liveGam
   DB.currentSeasonNum = data.db.currentSeasonNum;
   DB.lastManagerChanges = data.db.lastManagerChanges;
   DB.lastForcedRetirements = [];
-  setPlayerSeq(data.playerSeq);
 
   return { myTeamId: data.ui.myTeamId && teamMap.has(data.ui.myTeamId) ? data.ui.myTeamId : null, liveGame };
 }

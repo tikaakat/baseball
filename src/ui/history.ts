@@ -3,9 +3,9 @@ import { loadSeasonHistory } from '../engine/history';
 import { STORAGE_AVAILABLE } from '../engine/storage';
 import { DB, leagueName, teamById } from '../engine/state';
 import { avgOfStats, opsOfStats } from '../engine/stats';
-import type { Awards, SeasonRecord, StandingRecord, StatLine } from '../engine/types';
+import type { Awards, PitchLine, SeasonRecord, StandingRecord, StatLine } from '../engine/types';
 import { renderSection } from './app';
-import { fmt3, fmt3plain } from './format';
+import { fmt3, fmt3plain, fmtEra } from './format';
 import { UI } from './state';
 
 const EMPTY_AWARDS: Awards = { mvp: 0, bestNine: 0, psMvp: 0, rookie: 0, goldenGlove: 0 };
@@ -70,6 +70,19 @@ function seasonCardHTML(s: SeasonRecord): string {
           🌱 ${lnH}新人王：${award(s.rookieOfYear?.H, false) ?? '該当者なし'}<br>
           🌱 ${lnB}新人王：${award(s.rookieOfYear?.B, false) ?? '該当者なし'}
         </div>
+        ${s.pitchingLeaders ? `
+        <div style="font-weight:800;color:var(--pencil);margin-top:10px;">⚾ 投手タイトル</div>
+        <div class="muted" style="line-height:1.8;">
+          防御率：${(s.pitchingLeaders.era || []).map((x, i) => `${i + 1}位 ${x.name}（${x.team}）${fmtEra(x.value)}`).join('　') || '-'}<br>
+          勝利：${(s.pitchingLeaders.w || []).map((x, i) => `${i + 1}位 ${x.name}（${x.team}）${x.value}勝`).join('　') || '-'}<br>
+          セーブ：${(s.pitchingLeaders.sv || []).map((x, i) => `${i + 1}位 ${x.name}（${x.team}）${x.value}S`).join('　') || '-'}<br>
+          奪三振：${(s.pitchingLeaders.k || []).map((x, i) => `${i + 1}位 ${x.name}（${x.team}）${x.value}`).join('　') || '-'}
+        </div>` : ''}
+        ${s.bestPitcher ? `
+        <div class="muted" style="margin-top:6px;line-height:1.8;">
+          🏅 ${lnH}最優秀投手：${s.bestPitcher.H ? `${s.bestPitcher.H.name}（${s.bestPitcher.H.team}） ${s.bestPitcher.H.w}勝${s.bestPitcher.H.l}敗 防御率${fmtEra(s.bestPitcher.H.era)}` : '該当者なし'}<br>
+          🏅 ${lnB}最優秀投手：${s.bestPitcher.B ? `${s.bestPitcher.B.name}（${s.bestPitcher.B.team}） ${s.bestPitcher.B.w}勝${s.bestPitcher.B.l}敗 防御率${fmtEra(s.bestPitcher.B.era)}` : '該当者なし'}
+        </div>` : ''}
         ${s.goldenGlove ? `
         <div style="font-weight:800;color:var(--pencil);margin-top:10px;">🧤 ゴールデングラブ賞</div>
         <div class="muted" style="line-height:1.8;">
@@ -101,7 +114,7 @@ function teamTotalsHTML(history: SeasonRecord[]): string {
   </details>`;
 }
 
-/** 各チームの順位回数と日本一回数 */
+/** 各チームの順位回数とペンシルシリーズ制覇回数 */
 function rankCountsHTML(history: SeasonRecord[]): string {
   const counts: Record<string, { name: string; ranks: number[]; jsChamp: number }> = {};
   const blank = (name: string) => ({ name, ranks: [0, 0, 0, 0, 0, 0], jsChamp: 0 });
@@ -122,7 +135,7 @@ function rankCountsHTML(history: SeasonRecord[]): string {
     .map((r) => `<tr><td class="name">${r.name}</td>${r.ranks.map((n) => `<td>${n}</td>`).join('')}<td>${r.jsChamp}</td></tr>`).join('');
   return `<details class="howto" style="margin-bottom:10px;">
     <summary>各チームの優勝・順位回数（記録済み全${history.length}シーズン合算）</summary>
-    <table class="compact-table"><thead><tr><th class="namehead">チーム</th><th>優勝</th><th>2位</th><th>3位</th><th>4位</th><th>5位</th><th>6位</th><th>日本一</th></tr></thead>
+    <table class="compact-table"><thead><tr><th class="namehead">チーム</th><th>優勝</th><th>2位</th><th>3位</th><th>4位</th><th>5位</th><th>6位</th><th>シリーズ制覇</th></tr></thead>
     <tbody>${rows}</tbody></table>
   </details>`;
 }
@@ -147,17 +160,25 @@ function managerHistoryHTML(): string {
 
 /** 歴代個人成績トップ10（現役の通算＋OB。在籍10年以上が対象） */
 function allTimeHTML(): string {
-  interface AllTime { name: string; team: string; career: StatLine; awards: Awards; active: boolean; seasonsPlayed: number; debutSeason: number; lastSeason: number }
+  interface AllTime { name: string; team: string; career: StatLine; pCareer: PitchLine | null; awards: Awards; active: boolean; seasonsPlayed: number; debutSeason: number; lastSeason: number }
   const players: AllTime[] = [];
   DB.teams.forEach((t) => {
-    t.roster.forEach((p) => players.push({ name: p.name, team: t.name, career: p.career, awards: p.awards, active: true, seasonsPlayed: p.seasonsPlayed || 0, debutSeason: p.debutSeason || 1, lastSeason: DB.currentSeasonNum || 1 }));
-    (t.alumni || []).forEach((a) => players.push({ name: a.name, team: t.name, career: a.career, awards: a.awards || EMPTY_AWARDS, active: false, seasonsPlayed: a.seasonsPlayed || 0, debutSeason: a.debutSeason || 1, lastSeason: a.lastSeason || 1 }));
+    [...t.roster, ...t.pitchers].forEach((p) => players.push({ name: p.name, team: t.name, career: p.career, pCareer: p.pitch ? p.pCareer : null, awards: p.awards, active: true, seasonsPlayed: p.seasonsPlayed || 0, debutSeason: p.debutSeason || 1, lastSeason: DB.currentSeasonNum || 1 }));
+    (t.alumni || []).forEach((a) => players.push({ name: a.name, team: t.name, career: a.career, pCareer: a.isPitcher && a.pCareer ? a.pCareer : null, awards: a.awards || EMPTY_AWARDS, active: false, seasonsPlayed: a.seasonsPlayed || 0, debutSeason: a.debutSeason || 1, lastSeason: a.lastSeason || 1 }));
   });
   if (!players.length) return '';
-  const qualified = players.filter((x) => x.seasonsPlayed >= 10);
+  const qualified = players.filter((x) => x.seasonsPlayed >= 10 && !x.pCareer);
+  const qualifiedPitchers = players.filter((x) => x.seasonsPlayed >= 10 && x.pCareer);
   const seasonRange = (x: AllTime) => (x.active ? `'${x.debutSeason}-現役` : `'${x.debutSeason}-'${x.lastSeason}`);
   const statTable = (title: string, calc: (x: AllTime) => number, fmtFn: (x: AllTime) => string) => {
     const rows = qualified.slice().sort((a, b) => calc(b) - calc(a)).slice(0, 10)
+      .map((x, i) => `<tr><td>${i + 1}</td><td class="name">${x.name}（${x.team}${x.active ? '' : '・OB'}）<div class="muted" style="font-size:9px;">${seasonRange(x)}</div></td><td>${fmtFn(x)}</td></tr>`).join('');
+    return `<div style="font-weight:800;color:var(--pencil);margin-top:8px;">${title}</div>
+    <table class="compact-table"><thead><tr><th></th><th class="namehead">選手</th><th>${title.replace('通算', '')}</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
+  };
+  const pitchTable = (title: string, calc: (x: AllTime) => number, fmtFn: (x: AllTime) => string) => {
+    const rows = qualifiedPitchers.slice().sort((a, b) => calc(b) - calc(a)).slice(0, 10)
       .map((x, i) => `<tr><td>${i + 1}</td><td class="name">${x.name}（${x.team}${x.active ? '' : '・OB'}）<div class="muted" style="font-size:9px;">${seasonRange(x)}</div></td><td>${fmtFn(x)}</td></tr>`).join('');
     return `<div style="font-weight:800;color:var(--pencil);margin-top:8px;">${title}</div>
     <table class="compact-table"><thead><tr><th></th><th class="namehead">選手</th><th>${title.replace('通算', '')}</th></tr></thead>
@@ -176,6 +197,9 @@ function allTimeHTML(): string {
       ${statTable('通算打点', (x) => x.career.rbi, (x) => x.career.rbi + '点')}
       ${statTable('通算盗塁', (x) => x.career.sb || 0, (x) => (x.career.sb || 0) + '個')}
       ${statTable('通算OPS', (x) => opsOfStats(x.career), (x) => fmt3plain(opsOfStats(x.career)))}
+      ${pitchTable('通算勝利', (x) => x.pCareer!.w, (x) => x.pCareer!.w + '勝')}
+      ${pitchTable('通算セーブ', (x) => x.pCareer!.sv, (x) => x.pCareer!.sv + 'S')}
+      ${pitchTable('通算奪三振', (x) => x.pCareer!.k, (x) => String(x.pCareer!.k))}
       <div style="font-weight:800;color:var(--pencil);margin-top:8px;">受賞歴（MVP／ベストナイン／CS MVP／新人王／ゴールデングラブ）</div>
       <table class="compact-table"><thead><tr><th class="namehead">選手</th><th>MVP</th><th>BN</th><th>CS</th><th>新人</th><th>GG</th></tr></thead>
       <tbody>${awardRows || '<tr><td colspan="6" class="muted">まだ受賞者がいません。</td></tr>'}</tbody></table>`}

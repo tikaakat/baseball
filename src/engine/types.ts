@@ -20,6 +20,15 @@ export interface Awards {
   mvp: number; bestNine: number; psMvp: number; rookie: number; goldenGlove: number;
 }
 
+/** 投手成績（outs＝投球アウト数。投球回 = outs/3） */
+export interface PitchLine {
+  g: number; gs: number; w: number; l: number; sv: number;
+  outs: number; bf: number; h: number; hr: number; bb: number; k: number; r: number;
+}
+
+/** 投手能力（1〜256） */
+export interface PitchAttrs { stuff: number; control: number; stamina: number }
+
 export interface Player {
   id: string;
   name: string;
@@ -41,6 +50,13 @@ export interface Player {
   seasonsPlayed: number;
   psStats: StatLine;
   gachaImmunitySeasons: number;
+  /** 投手のみ：投手能力・成績（野手は null） */
+  pitch: PitchAttrs | null;
+  pStats: PitchLine;
+  pCareer: PitchLine;
+  psPStats: PitchLine;
+  /** 投手のみ：最近登板した日（連投管理用） */
+  recentDays?: number[];
 }
 
 export interface ManagerEffects {
@@ -80,6 +96,15 @@ export interface Alumnus {
   lastSeason: number;
   career: StatLine;
   awards: Awards;
+  isPitcher?: boolean;
+  pCareer?: PitchLine;
+}
+
+/** 投手陣の役割（選手IDで持つ） */
+export interface PitchingStaff {
+  rotation: string[];
+  closer: string | null;
+  setup: string | null;
 }
 
 export interface Team {
@@ -87,8 +112,15 @@ export interface Team {
   name: string;
   league: string;
   tagline: string;
+  /** 野手（スタメン9人＋控え） */
   roster: Player[];
+  /** 基本のスタメン打順（9人） */
   battingOrder: Player[];
+  /** 投手（先発5人＋中継ぎ・抑え） */
+  pitchers: Player[];
+  staff: PitchingStaff;
+  /** 次に先発するローテーションの番号 */
+  rotationIdx: number;
   wins: number;
   losses: number;
   ties: number;
@@ -98,6 +130,8 @@ export interface Team {
   manager: Manager | null;
   managerHistory: Manager[];
   alumni?: Alumnus[];
+  /** 永久欠番 */
+  retiredNumbers?: { number: number; name: string; season: number }[];
 }
 
 export interface ScheduleGame {
@@ -149,8 +183,24 @@ export type SeriesKey = 'H1' | 'B1' | 'H2' | 'B2' | 'JS';
 /** 1試合の個人打撃成績（ボックススコア） */
 export interface BoxLine { pa: number; ab: number; h: number; hr: number; rbi: number; bb: number; k: number; r: number; sb: number }
 
+/** 1試合の投手成績（ボックススコア） */
+export interface PitchBoxLine { outs: number; bf: number; h: number; hr: number; bb: number; k: number; r: number; dec: 'W' | 'L' | 'S' | null; entryLead?: number }
+
 export interface Game {
   scheduleId: string | null;
+  /** 連投管理用の通し日付 */
+  dayKey: number;
+  /** この試合の打順（選手ID）。代打などで書き換わる */
+  lineup: Record<Side, string[]>;
+  /** いま投げている投手（選手ID） */
+  pitcher: Record<Side, string>;
+  /** 登板した投手の順（選手ID） */
+  pitchersUsed: Record<Side, string[]>;
+  /** 選手ID → この試合の投手成績 */
+  pbox: Record<string, PitchBoxLine>;
+  /** 勝ち越し時点の勝利・敗戦投手候補 */
+  winCand: string | null;
+  loseCand: string | null;
   home: Team;
   away: Team;
   inning: number;
@@ -231,6 +281,7 @@ export interface DBState {
 
 /* ---- 球団史（保存される記録） ---- */
 export interface LeaderEntry { name: string; team: string; value: number }
+export interface PitcherAwardSummary { name: string; team: string; era: number; w: number; l: number; sv: number; k: number; ip: string }
 export interface AwardSummary { name: string; team: string; ops: number; avg: number; hr: number; rbi: number }
 export interface PositionAward { pos: string; name: string; team: string; ops?: number; avg?: number; hr?: number; errors?: number }
 export interface StandingRecord { teamId: string; name: string; rank: number; wins: number; losses: number; ties: number }
@@ -248,4 +299,7 @@ export interface SeasonRecord {
   bestNine?: { H: PositionAward[]; B: PositionAward[] };
   rookieOfYear?: { H: AwardSummary | null; B: AwardSummary | null };
   goldenGlove?: { H: PositionAward[]; B: PositionAward[] };
+  pitchingLeaders?: { era: LeaderEntry[]; w: LeaderEntry[]; sv: LeaderEntry[]; k: LeaderEntry[] };
+  /** リーグ最優秀投手（規定投球回以上で防御率最良） */
+  bestPitcher?: { H: PitcherAwardSummary | null; B: PitcherAwardSummary | null };
 }

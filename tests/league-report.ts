@@ -1,8 +1,9 @@
 /* リーグ全体の成績を集計する（バランス確認用） */
-import { autoSimGame, newGame } from '../src/engine/game';
+import { onDayFinished, simulateScheduleGame } from '../src/engine/days';
+import { lastDay } from '../src/engine/schedule';
 import { hardResetLeague } from '../src/engine/season';
-import { DB, teamById } from '../src/engine/state';
-import { avgOfStats, opsOfStats } from '../src/engine/stats';
+import { DB } from '../src/engine/state';
+import { avgOfStats, eraOf, isQualifiedPitcher, opsOfStats } from '../src/engine/stats';
 import type { Player } from '../src/engine/types';
 
 const pct = (arr: number[], q: number) => { const s = arr.slice().sort((a, b) => a - b); return s[Math.floor(q * (s.length - 1))]; };
@@ -15,6 +16,7 @@ export interface LeagueReport {
   leadAvg: number; leadHr: number; leadRbi: number; leadSb: number; leadHits: number;
   hrP10: number; hrP50: number; hrP90: number; avgP10: number; avgP90: number; opsP10: number; opsP90: number;
   winPctBest: number; winPctWorst: number;
+  ERA: number; leadEra: number; worstQualEra: number; leadW: number; leadSv: number; leadK: number; qualPitchers: number; spIpPerStart: number; teamEraBest: number; teamEraWorst: number;
 }
 
 /** 新しいリーグで n シーズン回した平均 */
@@ -24,7 +26,10 @@ export function leagueReport(n: number): LeagueReport {
   for (let s = 0; s < n; s++) {
     hardResetLeague();
     let extra = 0;
-    DB.schedule.forEach((g) => { const game = autoSimGame(newGame(teamById(g.home)!, teamById(g.away)!, g.id)); if (game.inning > 9) extra++; });
+    for (let d = 1; d <= lastDay(DB.schedule); d++) {
+      DB.schedule.filter((g) => g.day === d).forEach((g) => { if (simulateScheduleGame(g).inning > 9) extra++; });
+      onDayFinished(d);
+    }
     const t = { pa: 0, ab: 0, h: 0, bb: 0, k: 0, d: 0, tr: 0, hr: 0, sb: 0, cs: 0, gidp: 0, sac: 0, err: 0, r: 0 };
     const all: Player[] = []; const winPcts: number[] = [];
     DB.teams.forEach((team) => {
@@ -50,6 +55,18 @@ export function leagueReport(n: number): LeagueReport {
     push('hrP10', pct(hrs, 0.1)); push('hrP50', pct(hrs, 0.5)); push('hrP90', pct(hrs, 0.9));
     push('avgP10', pct(avgs, 0.1)); push('avgP90', pct(avgs, 0.9)); push('opsP10', pct(opss, 0.1)); push('opsP90', pct(opss, 0.9));
     push('winPctBest', Math.max(...winPcts)); push('winPctWorst', Math.min(...winPcts));
+    const pitchers = DB.teams.flatMap((team) => team.pitchers.map((p) => ({ p, team })));
+    const qp = pitchers.filter((x) => isQualifiedPitcher(x.p, x.team)).map((x) => eraOf(x.p.pStats));
+    const lgR = pitchers.reduce((a, x) => a + x.p.pStats.r, 0), lgOuts = pitchers.reduce((a, x) => a + x.p.pStats.outs, 0);
+    push('ERA', lgR * 27 / lgOuts);
+    push('leadEra', qp.length ? Math.min(...qp) : NaN); push('worstQualEra', qp.length ? Math.max(...qp) : NaN); push('qualPitchers', qp.length);
+    push('leadW', Math.max(...pitchers.map((x) => x.p.pStats.w))); push('leadSv', Math.max(...pitchers.map((x) => x.p.pStats.sv)));
+    push('leadK', Math.max(...pitchers.map((x) => x.p.pStats.k)));
+    const starts = pitchers.reduce((a, x) => a + x.p.pStats.gs, 0);
+    const spOuts = DB.teams.flatMap((t) => t.staff.rotation.map((id) => t.pitchers.find((p) => p.id === id)!)).reduce((a, p) => a + p.pStats.outs, 0);
+    push('spIpPerStart', spOuts / 3 / starts);
+    const teamEras = DB.teams.map((t) => t.runsAgainst * 27 / t.pitchers.reduce((a, p) => a + p.pStats.outs, 0));
+    push('teamEraBest', Math.min(...teamEras)); push('teamEraWorst', Math.max(...teamEras));
   }
   const out: Record<string, number> = {};
   for (const k in acc) out[k] = Math.round(mean(acc[k]) * 1000) / 1000;

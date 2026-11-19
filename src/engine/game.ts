@@ -1,14 +1,19 @@
 /* 試合の進行 */
 import { currentBattingKey, emptyBases, finalizeAtBat, pencilsFor, resolveAtBat, rollPencil1, rollPencil2 } from './atbat';
 import { TUNING } from './data';
+import { aiPitchingChoice, assignDecisions, currentPitcher, dayKeyFor, enterPitcher, fieldingSide, findPlayer, pickStarter, trackLeadChange } from './pitching';
 import { managerEffects } from './team';
 import { DB } from './state';
-import type { BoxLine, Game, P1Face, P2Face, Play, Player, SeriesKey, Team } from './types';
+import type { BoxLine, Game, P1Face, P2Face, PitchBoxLine, Play, Player, SeriesKey, Side, Team } from './types';
 import { frac } from './util';
 
 export function newGame(homeTeam: Team, awayTeam: Team, scheduleId: string | null, seriesKey?: SeriesKey): Game {
-  return {
+  const game: Game = {
     scheduleId: scheduleId || null, home: homeTeam, away: awayTeam,
+    dayKey: dayKeyFor(scheduleId || null),
+    lineup: { home: homeTeam.battingOrder.map((p) => p.id), away: awayTeam.battingOrder.map((p) => p.id) },
+    pitcher: { home: '', away: '' }, pitchersUsed: { home: [], away: [] }, pbox: {},
+    winCand: null, loseCand: null,
     inning: 1, half: 'top', outs: 0, bases: emptyBases(),
     score: { home: 0, away: 0 }, orderIdx: { home: 0, away: 0 }, log: [],
     finished: false, winner: null, pencilStage: 'ready', pendingP1: null, lastPlay: null,
@@ -17,11 +22,38 @@ export function newGame(homeTeam: Team, awayTeam: Team, scheduleId: string | nul
     box: {},
     seriesKey,
   };
+  (['away', 'home'] as const).forEach((side) => enterPitcher(game, side, pickStarter(game[side]), true));
+  return game;
 }
 
 export function currentBatter(game: Game): Player {
   const k = currentBattingKey(game);
-  return game[k].battingOrder[game.orderIdx[k]];
+  return findPlayer(game[k], game.lineup[k][game.orderIdx[k]])!;
+}
+
+/** 試合に出ている野手（守備側の失策の対象など） */
+export function fieldersOf(game: Game, side: Side): Player[] {
+  return game.lineup[side].map((id) => findPlayer(game[side], id)).filter((p): p is Player => !!p);
+}
+
+function pboxOfCurrent(game: Game): { p: Player; line: PitchBoxLine; season: Player['pStats'] } | null {
+  const p = currentPitcher(game);
+  if (!p) return null;
+  return { p, line: game.pbox[p.id], season: game.seriesKey ? p.psPStats : p.pStats };
+}
+
+/** 打席の前に、守備側（AI）の継投を判断する */
+export function beforePlateAppearance(game: Game): void {
+  if (game.finished) return;
+  const next = aiPitchingChoice(game);
+  if (next) changePitcher(game, next);
+}
+
+export function changePitcher(game: Game, next: Player): void {
+  const side = fieldingSide(game);
+  const prev = currentPitcher(game, side);
+  enterPitcher(game, side, next, false);
+  pushLog(game, `${game[side].name}、投手交代：${prev ? prev.name + ' → ' : ''}${next.name}`);
 }
 
 function pushLog(game: Game, text: string): void {
@@ -72,6 +104,21 @@ export function applyPlay(game: Game, play: Play): void {
     // 失策した野手の個人成績に加算（ゴールデングラブ賞の集計に使う）
     if (play.errorFielder) statsTarget(game, play.errorFielder).errors++;
   }
+  // 投手の成績
+  const pc = pboxOfCurrent(game);
+  if (pc) {
+    const isHit = play.rawResult === 'hit' || play.rawResult === 'double' || play.rawResult === 'triple' || play.rawResult === 'hr';
+    const outs = outsAfter - game.outs;
+    for (const line of [pc.line, pc.season]) {
+      line.bf++; line.outs += outs; line.r += runsThisPlay.length;
+      if (isHit) line.h++;
+      if (play.rawResult === 'hr') line.hr++;
+      if (play.rawResult === 'walk') line.bb++;
+      if (play.rawResult === 'k') line.k++;
+    }
+  }
+  const scoreBefore = { ...game.score };
+
   // ボックススコア
   const box = boxOf(game, b);
   box.pa++;
@@ -86,6 +133,7 @@ export function applyPlay(game: Game, play: Play): void {
     runsThisPlay.forEach((p) => { statsTarget(game, p).r++; boxOf(game, p).r++; });
     game.score[battingKey] += runsThisPlay.length;
     game.inningRuns[battingKey][game.inning - 1] += runsThisPlay.length;
+    trackLeadChange(game, battingKey, scoreBefore);
   }
   game.bases = play.nb;
   game.outs = outsAfter;
@@ -96,7 +144,7 @@ export function applyPlay(game: Game, play: Play): void {
   pushLog(game, text);
   game.lastPlay = { p1: play.p1, p2: play.p2, abilityKey: play.abilityKey, abilityNote: play.abilityNote };
 
-  game.orderIdx[battingKey] = (game.orderIdx[battingKey] + 1) % 9;
+  game.orderIdx[battingKey] = (game.orderIdx[battingKey] + 1) % game.lineup[battingKey].length;
 
   checkHalfInningEnd(game);
 }
@@ -140,6 +188,8 @@ function attemptSteal(game: Game): { success: boolean; runner: Player } | null {
     pushLog(game, `${runner.name}、盗塁成功！2塁へ`);
   } else {
     target.cs = (target.cs || 0) + 1;
+    const pc = pboxOfCurrent(game);
+    if (pc && game.outs < 3) { pc.line.outs++; pc.season.outs++; }
     game.bases.first = null;
     game.outs = Math.min(3, game.outs + 1);
     pushLog(game, `${runner.name}、盗塁失敗…`);
@@ -153,6 +203,7 @@ function finishGame(game: Game, forcedTie = false): void {
   if (forcedTie || game.score.home === game.score.away) game.winner = 'tie';
   else game.winner = game.score.home > game.score.away ? 'home' : 'away';
   pushLog(game, `試合終了　${game.away.name} ${game.score.away} - ${game.score.home} ${game.home.name}`);
+  assignDecisions(game);
 
   if (game.seriesKey) {
     const s = DB.postseason!.series[game.seriesKey]!;
@@ -196,6 +247,7 @@ export type RollStepResult =
 export function rollStep(game: Game): RollStepResult | null {
   if (game.finished) return null;
   if (game.pencilStage === 'ready') {
+    beforePlateAppearance(game);
     attemptSteal(game); // 打席の前に、1塁走者が盗塁を試みることがある
     if (game.finished) return { stage: 'resolved', play: null, stealOnly: true };
   }
@@ -223,6 +275,7 @@ export function rollStep(game: Game): RollStepResult | null {
 export function autoSimGame(game: Game): Game {
   let it = 0;
   while (!game.finished && it < 5000) {
+    beforePlateAppearance(game);
     attemptSteal(game);
     if (game.finished) break;
     const play = resolveAtBat(currentBatter(game), game.bases, game);

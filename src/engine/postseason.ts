@@ -1,9 +1,9 @@
-/* ポストシーズン（クライマックスシリーズ／日本シリーズ） */
-import { SERIES_KEYS } from './data';
+/* ポストシーズン（プレーオフ／ペンシルシリーズ） */
+import { POSTSEASON_NAMES, SERIES_KEYS } from './data';
 import { autoSimGame, newGame } from './game';
 import { finalizeStandings } from './standings';
 import { DB, leagueName } from './state';
-import { emptyStatLine } from './stats';
+import { emptyPitchLine, emptyStatLine } from './stats';
 import type { Series, Team } from './types';
 
 function makeSeries(teamA: Team, teamB: Team, winsToClinch: number, advA: number, advB: number, label: string): Series {
@@ -12,12 +12,12 @@ function makeSeries(teamA: Team, teamB: Team, winsToClinch: number, advA: number
 
 export function startPostseason(): void {
   const { H, B } = finalizeStandings();
-  DB.teams.forEach((t) => t.roster.forEach((p) => { p.psStats = emptyStatLine(); }));
+  DB.teams.forEach((t) => [...t.roster, ...t.pitchers].forEach((p) => { p.psStats = emptyStatLine(); p.psPStats = emptyPitchLine(); }));
   DB.postseason = {
     standings: { H, B },
     series: {
-      H1: makeSeries(H[1], H[2], 2, 0, 0, leagueName('H') + ' ファーストステージ（2位 vs 3位・2勝先取）'),
-      B1: makeSeries(B[1], B[2], 2, 0, 0, leagueName('B') + ' ファーストステージ（2位 vs 3位・2勝先取）'),
+      H1: makeSeries(H[1], H[2], 2, 0, 0, leagueName('H') + ` ${POSTSEASON_NAMES.firstStage}（2位 vs 3位・2勝先取）`),
+      B1: makeSeries(B[1], B[2], 2, 0, 0, leagueName('B') + ` ${POSTSEASON_NAMES.firstStage}（2位 vs 3位・2勝先取）`),
       H2: null, B2: null, JS: null,
     },
     champion: null,
@@ -30,13 +30,13 @@ export function progressPostseason(): void {
   if (!ps) return;
   const { H, B } = ps.standings;
   if (!ps.series.H2 && ps.series.H1.winner) {
-    ps.series.H2 = makeSeries(H[0], ps.series.H1.winner, 4, 1, 0, leagueName('H') + ' ファイナルステージ（1位に1勝のアドバンテージ・4勝先取）');
+    ps.series.H2 = makeSeries(H[0], ps.series.H1.winner, 4, 1, 0, leagueName('H') + ` ${POSTSEASON_NAMES.finalStage}（1位に1勝のアドバンテージ・4勝先取）`);
   }
   if (!ps.series.B2 && ps.series.B1.winner) {
-    ps.series.B2 = makeSeries(B[0], ps.series.B1.winner, 4, 1, 0, leagueName('B') + ' ファイナルステージ（1位に1勝のアドバンテージ・4勝先取）');
+    ps.series.B2 = makeSeries(B[0], ps.series.B1.winner, 4, 1, 0, leagueName('B') + ` ${POSTSEASON_NAMES.finalStage}（1位に1勝のアドバンテージ・4勝先取）`);
   }
   if (!ps.series.JS && ps.series.H2?.winner && ps.series.B2?.winner) {
-    ps.series.JS = makeSeries(ps.series.H2.winner, ps.series.B2.winner, 4, 0, 0, '日本シリーズ（4勝先取）');
+    ps.series.JS = makeSeries(ps.series.H2.winner, ps.series.B2.winner, 4, 0, 0, `${POSTSEASON_NAMES.final}（4勝先取）`);
   }
   if (ps.series.JS?.winner) ps.champion = ps.series.JS.winner;
 }

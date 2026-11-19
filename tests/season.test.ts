@@ -25,8 +25,11 @@ describe('シーズン進行', () => {
     }
     expect(DB.currentSeasonNum).toBe(11);
     DB.teams.forEach((t) => {
-      expect(t.roster).toHaveLength(9);
+      expect(t.roster).toHaveLength(13);
+      expect(t.pitchers).toHaveLength(13);
       expect(new Set(t.battingOrder.map((p) => p.id)).size).toBe(9);
+      expect(t.staff.rotation).toHaveLength(6);
+      t.staff.rotation.forEach((id) => expect(t.pitchers.some((p) => p.id === id)).toBe(true));
       t.battingOrder.forEach((p) => expect(t.roster).toContain(p));
     });
   });

@@ -1,8 +1,8 @@
 /* シーズンの表彰・タイトル（呼ぶと選手の受賞回数も加算される） */
 import { LEAGUE_CODES, POSITIONS } from './data';
 import { DB } from './state';
-import { avgOf, avgOfStats, isQualified, opsOf, opsOfStats } from './stats';
-import type { AwardSummary, LeaderEntry, Player, PositionAward, Team } from './types';
+import { avgOf, avgOfStats, eraOf, ipOf, isQualified, isQualifiedPitcher, opsOf, opsOfStats } from './stats';
+import type { AwardSummary, LeaderEntry, PitcherAwardSummary, Player, PositionAward, Team } from './types';
 
 type Entry = { p: Player; t: Team };
 const LEAGUES = [['H', LEAGUE_CODES[0]], ['B', LEAGUE_CODES[1]]] as const;
@@ -44,7 +44,7 @@ export function computeSeasonMVP(): { H: AwardSummary | null; B: AwardSummary | 
   return result;
 }
 
-/** ポストシーズンMVP：日本一チームから、ポストシーズンOPS最高の選手 */
+/** ポストシーズンMVP：優勝チームから、ポストシーズンOPS最高の選手 */
 export function computePostseasonMVP(): AwardSummary | null {
   const champTeam = DB.postseason?.champion;
   if (!champTeam) return null;
@@ -66,6 +66,11 @@ export function computeBestNine(): { H: PositionAward[]; B: PositionAward[] } {
       best.p.awards.bestNine++;
       result[outKey].push({ pos, name: best.p.name, team: best.t.name, ops: opsOf(best.p), avg: avgOf(best.p), hr: best.p.stats.hr });
     });
+    // 投手：規定投球回以上で防御率が最も良い投手（いなければ勝利数最多）
+    const q = pitcherEntries((p, t) => isQualifiedPitcher(p, t), code);
+    const pool = q.length ? q.sort((a, b) => eraOf(a.p.pStats) - eraOf(b.p.pStats)) : pitcherEntries(() => true, code).sort((a, b) => b.p.pStats.w - a.p.pStats.w);
+    const bp = pool[0];
+    if (bp) { bp.p.awards.bestNine++; result[outKey].unshift({ pos: '投', name: bp.p.name, team: bp.t.name }); }
   });
   return result;
 }
@@ -95,6 +100,43 @@ export function computeGoldenGlove(): { H: PositionAward[]; B: PositionAward[] }
       best.p.awards.goldenGlove++;
       result[outKey].push({ pos, name: best.p.name, team: best.t.name, errors: best.p.stats.errors });
     });
+  });
+  return result;
+}
+
+/* ---------- 投手 ---------- */
+function pitcherEntries(filter: (p: Player, t: Team) => boolean = () => true, leagueCode?: string): Entry[] {
+  const all: Entry[] = [];
+  DB.teams
+    .filter((t) => leagueCode === undefined || t.league === leagueCode)
+    .forEach((t) => t.pitchers.forEach((p) => { if (filter(p, t)) all.push({ p, t }); }));
+  return all;
+}
+function pitcherSummary(x: Entry): PitcherAwardSummary {
+  const s = x.p.pStats;
+  return { name: x.p.name, team: x.t.name, era: eraOf(s), w: s.w, l: s.l, sv: s.sv, k: s.k, ip: ipOf(s) };
+}
+
+export function computePitchingLeaders(): { era: LeaderEntry[]; w: LeaderEntry[]; sv: LeaderEntry[]; k: LeaderEntry[] } {
+  const all = pitcherEntries();
+  const qualified = all.filter((x) => isQualifiedPitcher(x.p, x.t));
+  const top3 = (list: Entry[], calc: (p: Player) => number, asc = false) =>
+    list.slice().sort((a, b) => (asc ? calc(a.p) - calc(b.p) : calc(b.p) - calc(a.p))).slice(0, 3).map((x) => ({ name: x.p.name, team: x.t.name, value: calc(x.p) }));
+  return {
+    era: top3(qualified, (p) => eraOf(p.pStats), true),
+    w: top3(all, (p) => p.pStats.w),
+    sv: top3(all, (p) => p.pStats.sv),
+    k: top3(all, (p) => p.pStats.k),
+  };
+}
+
+/** 最優秀投手：リーグごとに、規定投球回以上で防御率が最も良い投手 */
+export function computeBestPitcher(): { H: PitcherAwardSummary | null; B: PitcherAwardSummary | null } {
+  const result: { H: PitcherAwardSummary | null; B: PitcherAwardSummary | null } = { H: null, B: null };
+  LEAGUES.forEach(([outKey, code]) => {
+    const q = pitcherEntries((p, t) => isQualifiedPitcher(p, t), code);
+    if (!q.length) return;
+    result[outKey] = pitcherSummary(q.slice().sort((a, b) => eraOf(a.p.pStats) - eraOf(b.p.pStats))[0]);
   });
   return result;
 }

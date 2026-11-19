@@ -39,3 +39,16 @@ export function nameBadge(player: Player, contextPlayers: Player[]): string {
   if (!dupe) return player.name;
   return `<span style="position:relative;display:inline-block;padding-right:11px;">${player.name}<span style="position:absolute;right:-2px;bottom:-4px;font-size:9.5px;line-height:1;color:var(--pencil);font-weight:700;">${player.given.charAt(0)}</span></span>`;
 }
+
+/** 能力の評価バッジ（野手：パワー・ミート・走力／投手：球威・制球・スタミナ） */
+export function abilityBadges(p: Player): string {
+  if (p.pitch) return `球威${gradeBadge(p.pitch.stuff)}　制球${gradeBadge(p.pitch.control)}　スタミナ${gradeBadge(p.pitch.stamina)}`;
+  return `パワー${gradeBadge(p.power)}　ミート${gradeBadge(p.contact)}　走力${gradeBadge(p.speed)}`;
+}
+/** 能力の評価（短い文字だけ） */
+export function abilityShort(p: Player): string {
+  if (p.pitch) return `球威${gradeOf(p.pitch.stuff)}/制球${gradeOf(p.pitch.control)}/ス${gradeOf(p.pitch.stamina)}`;
+  return `P${gradeOf(p.power)}/C${gradeOf(p.contact)}/S${gradeOf(p.speed)}`;
+}
+/** 防御率の表記 */
+export function fmtEra(n: number): string { return isFinite(n) ? n.toFixed(2) : '-.--'; }

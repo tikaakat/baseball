@@ -384,3 +384,6 @@ select[data-gachaselect]{
 .compact-table.box td,.compact-table.box th{text-align:center;}
 .compact-table.box td.name{text-align:left;}
 .compact-table.box tr.hot td{color:var(--pencil);font-weight:800;}
+.pitcher-line{font-size:10.5px;color:var(--dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pitcher-line b{color:var(--cream);}
+.pitcher-line .tired{color:var(--bad);font-weight:800;}

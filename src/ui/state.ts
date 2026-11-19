@@ -7,7 +7,7 @@ export type Modal =
   | { type: 'confirm'; message: string; onConfirm: () => void }
   | { type: 'editTeam'; teamId: string; name: string; tagline: string }
   | { type: 'editLeague'; code: string; name: string }
-  | { type: 'editPlayer'; playerId: string; name: string; age: number; power: number; contact: number; speed: number; ability: AbilityKey | '' };
+  | { type: 'editPlayer'; playerId: string; name: string; age: number; power: number; contact: number; speed: number; ability: AbilityKey | ''; pitch: { stuff: number; control: number; stamina: number } | null };
 
 export interface UIState {
   tab: TabKey;
@@ -15,6 +15,8 @@ export interface UIState {
   flash: string | null;
   leaderCat: string;
   leaderLeague: string;
+  leaderMode: 'bat' | 'pitch';
+  pitchLeaderCat: string;
   rosterTeamId: string | null;
   rosterStatMode: 'season' | 'career';
   rolling: boolean;
@@ -28,7 +30,7 @@ export interface UIState {
 }
 
 export const UI: UIState = {
-  tab: 'play', liveGame: null, flash: null, leaderCat: 'avg', leaderLeague: 'ALL',
+  tab: 'play', liveGame: null, flash: null, leaderCat: 'avg', leaderLeague: 'ALL', leaderMode: 'bat', pitchLeaderCat: 'era',
   rosterTeamId: null, rosterStatMode: 'season', rolling: false, myTeamId: null, modal: null,
   gachaResults: null, gachaSelecting: false, gachaMySelection: null,
   seasonHistory: null, seasonHistoryLoading: false,
