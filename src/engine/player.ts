@@ -1,5 +1,5 @@
 /* 選手の生成・成長・退団 */
-import { FOREIGN_NAMES, FOREIGN_PLAYER_RATE, GIVEN_NAMES, GROWTH_PEAK, SURNAMES } from './data';
+import { FOREIGN_NAMES, FOREIGN_PLAYER_RATE, GIVEN_NAMES, GROWTH_PEAK, ROOKIE_AGE, ROOKIE_MAX_STAT, SURNAMES } from './data';
 import { DB } from './state';
 import { accumulateStatLine, emptyStatLine, opsOfStats } from './stats';
 import type { GrowthType, Player, Team } from './types';
@@ -48,11 +48,12 @@ export function applyAging(p: Player): void {
 
 export function createPlayer(pos: string | null, identity?: PlayerIdentity, youngProspect = false, debutSeasonOverride?: number): Player {
   const id = identity || pickPlayerIdentity([]);
+  const maxStat = youngProspect ? ROOKIE_MAX_STAT : 256; // 新人は少し低めから始まり、若いうちに伸びる
   return {
     id: 'p' + playerSeq++, name: id.surname, given: id.given, initial: id.initial, pos: pos ?? '',
     number: null, // 背番号はロースター作成時にチーム単位で重複しないよう割り振る
-    power: randInt(1, 256), contact: randInt(1, 256), speed: randInt(1, 256), defense: randInt(1, 256), ability: null,
-    age: youngProspect ? randInt(18, 23) : Math.round((randInt(19, 36) + randInt(19, 36)) / 2),
+    power: randInt(1, maxStat), contact: randInt(1, maxStat), speed: randInt(1, maxStat), defense: randInt(1, 256), ability: null,
+    age: youngProspect ? randInt(ROOKIE_AGE[0], ROOKIE_AGE[1]) : Math.round((randInt(19, 36) + randInt(19, 36)) / 2),
     growthType: choice(GROWTH_TYPES),
     debutSeason: debutSeasonOverride || DB.currentSeasonNum || 1,
     stats: emptyStatLine(),   // 今シーズンの成績

@@ -69,6 +69,22 @@ describe('セーブデータ', () => {
     expect(DB.teams.some((t) => (t.alumni || []).length > 0)).toBe(true);
   });
 
+  it('旧版の保存データ（日程の「何日目」・ボックススコアが無い）も読み込んで続きから遊べる', () => {
+    hardResetLeague();
+    const g = DB.schedule[0];
+    const game = newGame(teamById(g.home)!, teamById(g.away)!, g.id);
+    rollStep(game);
+    const data = JSON.parse(JSON.stringify(serializeState({ myTeamId: g.home, liveGame: game })));
+    data.db.schedule.forEach((x: Record<string, unknown>) => { delete x.day; });
+    delete data.ui.liveGame.box;
+    hardResetLeague();
+    const ui = restoreState(data);
+    expect(DB.schedule.every((x) => x.day >= 1)).toBe(true);
+    while (!ui.liveGame!.finished) rollStep(ui.liveGame!);
+    simWholeSeason();
+    DB.teams.forEach((t) => expect(t.wins + t.losses + t.ties).toBe(144));
+  });
+
   it('形式の違うデータは拒否し、リーグを壊さない', () => {
     hardResetLeague();
     const teamsBefore = DB.teams;

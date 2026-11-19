@@ -1,5 +1,5 @@
 /* チーム編成：ロースター・打順・監督・ガチャ・引退 */
-import { ABILITY_AFFINITY, BATTING_SLOT_PRIORITY, MANAGER_TYPES, POSITIONS, RETIREMENT_AGE, TEAM_DEFS } from './data';
+import { ABILITY_AFFINITY, BATTING_SLOT_PRIORITY, MANAGER_TYPES, POSITIONS, RETIREMENT, TEAM_DEFS } from './data';
 import { createPlayer, performanceScore, pickPlayerIdentity, pickUniformNumber, retirePlayer } from './player';
 import { DB } from './state';
 import type { GachaResult, Manager, ManagerEffects, Player, Team } from './types';
@@ -166,11 +166,21 @@ export function gachaSwapAllTeams(myTeamId: string | null, mySelectedPlayerId: s
   return results;
 }
 
-/** 45歳を超えた選手を強制引退させ、若手に入れ替える */
-export function forceRetireOldPlayers(t: Team): { team: Team; out: Player; in: Player }[] {
+/** ベテランの引退判断：33歳ごろから、年齢が上がるほど・能力が落ちているほど引退しやすい */
+export function shouldRetire(p: Player): boolean {
+  const R = RETIREMENT;
+  if (p.age >= R.forcedAge) return true;
+  if (p.age < R.startAge) return false;
+  const overall = (p.power + p.contact + p.speed) / 3;
+  const chance = R.base + R.perYear * (p.age - R.startAge) + (overall < R.weakOverall ? R.weakBonus : 0);
+  return Math.random() < chance;
+}
+
+/** シーズンオフの引退。引退した選手は若手に入れ替える */
+export function retireVeterans(t: Team): { team: Team; out: Player; in: Player }[] {
   const retiredList: { team: Team; out: Player; in: Player }[] = [];
   t.roster.forEach((p, idx) => {
-    if (p.age > RETIREMENT_AGE) {
+    if (shouldRetire(p)) {
       const { incoming } = replaceWithRookie(t, idx);
       retiredList.push({ team: t, out: p, in: incoming });
     }

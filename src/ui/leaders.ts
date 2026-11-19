@@ -1,7 +1,7 @@
 /* 「個人成績」タブ */
 import { ABILITY_INFO, LEAGUE_CODES } from '../engine/data';
 import { DB, leagueName } from '../engine/state';
-import { avgOf, obpOf, opsOf, slgOf } from '../engine/stats';
+import { avgOf, isQualified, obpOf, opsOf, slgOf } from '../engine/stats';
 import type { Player, Team } from '../engine/types';
 import { render } from './app';
 import { $$, fmt3, fmt3plain, nameBadge } from './format';
@@ -31,7 +31,7 @@ export function renderLeaders(): string {
   DB.teams.forEach((t) => t.roster.forEach((p) => all.push({ p, t })));
   const allPlayersFlat = all.map((x) => x.p);
   if (leagueFilter !== 'ALL') all = all.filter((x) => x.t.league === leagueFilter);
-  if (cat.minAb) all = all.filter((x) => x.p.stats.ab >= 10);
+  if (cat.minAb) all = all.filter((x) => isQualified(x.p, x.t));
   all.sort((a, b) => cat.calc(b.p) - cat.calc(a.p));
   const top = all.slice(0, 10);
 
@@ -64,7 +64,7 @@ export function renderLeaders(): string {
     <h2>個人成績ランキング</h2>
     <div class="subtabs">${leagueTabs}</div>
     <div class="subtabs">${tabs}</div>
-    <div class="muted" style="margin-bottom:6px;">並び順：${cat.label}（${leagueFilter === 'ALL' ? '両リーグ合算' : leagueName(leagueFilter) + 'のみ'}）　${cat.minAb ? '／規定打席の目安として打数10以上が対象' : ''}</div>
+    <div class="muted" style="margin-bottom:6px;">並び順：${cat.label}（${leagueFilter === 'ALL' ? '両リーグ合算' : leagueName(leagueFilter) + 'のみ'}）　${cat.minAb ? '／規定打席（チーム試合数×3.1）以上が対象' : ''}</div>
     <div class="table-scroll">
     <table>
       <thead><tr><th>順位</th><th>選手</th><th>打率</th><th>出塁率</th><th>長打率</th><th>OPS</th><th>安打</th><th>三塁打</th><th>本塁打</th><th>打点</th><th>四球</th><th>三振</th></tr></thead>

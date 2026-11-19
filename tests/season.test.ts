@@ -3,7 +3,7 @@ import { autoCompletePostseason } from '../src/engine/postseason';
 import { hardResetLeague, startNewSeason } from '../src/engine/season';
 import { DB } from '../src/engine/state';
 import { gachaSwapAllTeams } from '../src/engine/team';
-import { simWholeSeason, summarizeLeague } from './sim-helpers';
+import { simWholeSeason } from './sim-helpers';
 
 describe('シーズン進行', () => {
   it('144試合×12球団を消化でき、ポストシーズンで日本一が決まる', () => {
@@ -32,18 +32,19 @@ describe('シーズン進行', () => {
   });
 });
 
-describe('バランス（リーグ全体の成績が現実のプロ野球に近い範囲に収まる）', () => {
-  it('3シーズン平均', () => {
-    const results = [0, 1, 2].map(() => { hardResetLeague(); simWholeSeason(); return summarizeLeague(); });
-    const mean = (k: keyof (typeof results)[0]) => results.reduce((a, r) => a + r[k], 0) / results.length;
-    const summary = {
-      runsPerGame: mean('runsPerGame'), avg: mean('avg'), obp: mean('obp'), slg: mean('slg'),
-      hrPerTeam: mean('hrPerTeam'), sbPerTeam: mean('sbPerTeam'), tieRate: mean('tieRate'),
-    };
-    console.table(summary);
-    expect(summary.avg).toBeGreaterThan(0.22);
-    expect(summary.avg).toBeLessThan(0.29);
-    expect(summary.runsPerGame).toBeGreaterThan(2.5);
-    expect(summary.runsPerGame).toBeLessThan(5.5);
+describe('日程', () => {
+  it('毎日すべての球団が1試合ずつ、144日。同一リーグ各24試合（ホーム12）、交流戦各4試合', () => {
+    hardResetLeague();
+    const days = new Map<number, string[]>();
+    DB.schedule.forEach((g) => { const d = days.get(g.day) ?? []; d.push(g.home, g.away); days.set(g.day, d); });
+    expect(days.size).toBe(144);
+    days.forEach((teams) => expect(new Set(teams).size).toBe(12));
+    const t0 = DB.teams[0];
+    DB.teams.filter((t) => t !== t0).forEach((t) => {
+      const vs = DB.schedule.filter((g) => (g.home === t0.id && g.away === t.id) || (g.home === t.id && g.away === t0.id));
+      const home = vs.filter((g) => g.home === t0.id).length;
+      if (t.league === t0.league) { expect(vs).toHaveLength(24); expect(home).toBe(12); }
+      else { expect(vs).toHaveLength(4); expect(home).toBe(2); }
+    });
   });
 });

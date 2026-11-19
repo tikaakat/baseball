@@ -10,8 +10,8 @@ import { $, $$ } from './format';
 import { saveErrorMessage, scheduleSave } from './persist';
 import { UI, type TabKey } from './state';
 
-function tabBtn(key: TabKey, label: string): string {
-  return `<button class="tabbtn ${UI.tab === key ? 'active' : ''}" data-tab="${key}">${label}</button>`;
+function tabBtn(key: TabKey, icon: string, label: string): string {
+  return `<button class="tabbtn ${UI.tab === key ? 'active' : ''}" data-tab="${key}"><span class="ic">${icon}</span>${label}</button>`;
 }
 
 export function render(): void {
@@ -19,16 +19,15 @@ export function render(): void {
   app.innerHTML = `
     <div class="hero">
       <h1>⬡ 六角鉛筆ベースボール ⬡</h1>
-      <p>鉛筆を転がして戦う、12球団リーグ戦プロトタイプ</p>
     </div>
-    <div class="tabbar">
-      ${tabBtn('play', '▶ 試合')}
-      ${tabBtn('standings', '📊 順位表')}
-      ${tabBtn('leaders', '🏆 個人成績')}
-      ${tabBtn('roster', '📋 選手名鑑')}
-      ${tabBtn('history', '🏛 球団史')}
-      ${tabBtn('howto', '📖 遊び方')}
-    </div>
+    <nav class="tabbar">
+      ${tabBtn('play', '⚾', '試合')}
+      ${tabBtn('standings', '📊', '順位')}
+      ${tabBtn('leaders', '🏆', '成績')}
+      ${tabBtn('roster', '📋', '名鑑')}
+      ${tabBtn('history', '🏛', '球団史')}
+      ${tabBtn('howto', '📖', '遊び方')}
+    </nav>
     ${saveErrorMessage() ? `<div class="flash">⚠ ${saveErrorMessage()}。この端末の空き容量やブラウザの設定を確認してください。</div>` : ''}
     <div class="section" id="section"></div>
     <div id="modalRoot">${modalHTML()}</div>

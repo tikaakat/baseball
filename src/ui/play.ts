@@ -1,15 +1,16 @@
 /* 「試合」タブ：マイチーム選択・日程・試合画面・ポストシーズン・オフシーズンガチャ */
-import { emptyBases, currentBattingKey } from '../engine/atbat';
-import { ABILITY_INFO, FACE_LABEL, P1_FACES, P2_FACES, RETIREMENT_AGE, SERIES_KEYS } from '../engine/data';
+import { currentBattingKey, emptyBases, pencilsFor, pencilSummary } from '../engine/atbat';
+import { ABILITY_INFO, FACE_LABEL, P1_FACES, P2_FACES, SERIES_KEYS } from '../engine/data';
 import { autoSimGame, currentBatter, newGame, rollStep } from '../engine/game';
 import { ArchiveError, archiveCurrentSeason } from '../engine/history';
 import { autoCompletePostseason, progressPostseason, startPostseason } from '../engine/postseason';
-import { regularSeasonComplete } from '../engine/schedule';
+import { currentDay, lastDay, regularSeasonComplete } from '../engine/schedule';
+import { completeDaysThrough, simulateDays, simulateScheduleGame } from '../engine/days';
 import { startNewSeason } from '../engine/season';
 import { DB, leagueName, teamById } from '../engine/state';
 import { opsOf } from '../engine/stats';
 import { gachaSwapAllTeams, worstPerformer } from '../engine/team';
-import type { Game, ScheduleGame, Series, SeriesKey } from '../engine/types';
+import type { Game, Player, ScheduleGame, Series, SeriesKey } from '../engine/types';
 import { choice } from '../engine/util';
 import { render } from './app';
 import { $, $$, fmt3plain, gradeBadge, gradeOf } from './format';
@@ -95,28 +96,40 @@ function gachaHTML(): string {
       </div>`;
 }
 
+function vsLabel(g: ScheduleGame): string {
+  const opp = teamById(g.home === UI.myTeamId ? g.away : g.home)!;
+  return `${g.home === UI.myTeamId ? 'vs' : '@'} ${opp.name}`;
+}
+
 function scheduleHTML(): string {
   if (!UI.myTeamId) return teamPickerHTML();
 
   const myTeam = teamById(UI.myTeamId)!;
   const isMine = (g: ScheduleGame) => g.home === UI.myTeamId || g.away === UI.myTeamId;
-  const unplayed = DB.schedule.filter((g) => !g.played && isMine(g)).sort((a, b) => a.order - b.order);
-  const played = DB.schedule.filter((g) => g.played && isMine(g));
-  const otherUnplayedCount = DB.schedule.filter((g) => !g.played && !isMine(g)).length;
-
+  const mine = DB.schedule.filter(isMine).sort((a, b) => a.day - b.day || a.order - b.order);
+  const unplayed = mine.filter((g) => !g.played);
+  const played = mine.filter((g) => g.played);
+  const today = unplayed[0] ?? null;
   const flashHtml = UI.flash ? `<div class="flash">${UI.flash}</div>` : '';
 
-  let rows = unplayed.slice(0, 8).map((g) => {
-    const h = teamById(g.home)!, a = teamById(g.away)!;
-    return `<div class="game-row">
-      <div class="vs">第${g.order}回戦　<b>${a.name}</b> @ <b>${h.name}</b></div>
-      <div class="actions">
-        <button class="btn small" data-play="${g.id}">観る</button>
-        <button class="btn small secondary" data-sim="${g.id}">自動</button>
+  const todayHtml = today ? `
+    <div class="today">
+      <div class="today-day">第${today.day}日（全${lastDay(DB.schedule)}日）</div>
+      <div class="today-vs">${vsLabel(today)}</div>
+      <div class="row" style="justify-content:center;margin-top:10px;">
+        <button class="btn" data-play="${today.id}">▶ 観る（鉛筆を転がす）</button>
+        <button class="btn secondary" data-sim="${today.id}">自動で結果だけ</button>
       </div>
-    </div>`;
+      <div class="muted" style="text-align:center;margin-top:6px;font-size:11px;">試合が終わると、同じ日の他球団の試合も自動で進みます</div>
+    </div>` : '<div class="muted">レギュラーシーズンの全試合が終わりました。お疲れさまでした。</div>';
+
+  const upcoming = unplayed.slice(1, 6).map((g) => `<div class="game-row"><div class="vs">第${g.day}日　${vsLabel(g)}</div></div>`).join('');
+  const recent = played.slice(-5).reverse().map((g) => {
+    const r = g.result!;
+    const myScore = g.home === UI.myTeamId ? r.home : r.away, oppScore = g.home === UI.myTeamId ? r.away : r.home;
+    const mark = r.winner === 'tie' ? '△' : myScore > oppScore ? '○' : '●';
+    return `<div class="game-row"><div class="vs">第${g.day}日　${vsLabel(g)}</div><span class="pill ${mark === '○' ? 'win' : mark === '●' ? 'lose' : ''}">${mark} ${myScore}-${oppScore}</span></div>`;
   }).join('');
-  if (unplayed.length > 8) rows += `<div class="muted" style="text-align:center;">ほか ${unplayed.length - 8} 試合…</div>`;
 
   return `
   ${flashHtml}
@@ -125,17 +138,21 @@ function scheduleHTML(): string {
       <h2 style="margin:0;">マイチーム: ${myTeam.name}</h2>
       <button class="btn secondary small" id="changeTeamBtn">変更</button>
     </div>
-    <div class="muted" style="margin-top:4px;">${myTeam.wins}勝 ${myTeam.losses}敗 ${myTeam.ties}分　（${played.length}/${played.length + unplayed.length} 試合消化）</div>
-    <div class="row" style="margin-top:8px;">
-      <button class="btn secondary" id="simOthersBtn">一括自動シミュレート（自チーム以外、残り${otherUnplayedCount}）</button>
-      <button class="btn secondary" id="simMineBtn">一括自動シミュレート（自チーム、残り${unplayed.length}）</button>
-      <button class="btn secondary" id="simPostseasonBtn">一括自動シミュレート（ポストシーズン）</button>
-      <button class="btn secondary" id="newSeasonBtn">新しいシーズンを始める</button>
-    </div>
+    <div class="muted" style="margin-top:4px;">${myTeam.wins}勝 ${myTeam.losses}敗 ${myTeam.ties}分　（${played.length}/${mine.length} 試合消化）</div>
+    ${todayHtml}
   </div>
+  ${upcoming || recent ? `<div class="card">
+    ${upcoming ? `<h2>今後の予定</h2>${upcoming}` : ''}
+    ${recent ? `<h2 style="margin-top:${upcoming ? 14 : 0}px;">最近の結果</h2>${recent}` : ''}
+  </div>` : ''}
   <div class="card">
-    <h2>次の試合</h2>
-    ${rows || '<div class="muted">未消化の試合はありません。お疲れさまでした。</div>'}
+    <h2>まとめて進める</h2>
+    <div class="row">
+      ${today ? `<button class="btn secondary small" id="simWeekBtn">6日分を自動</button>
+      <button class="btn secondary small" id="simSeasonBtn">シーズン終了まで自動</button>` : ''}
+      ${seasonDone() ? '<button class="btn secondary small" id="simPostseasonBtn">ポストシーズンを自動</button>' : ''}
+      <button class="btn secondary small" id="newSeasonBtn">新しいシーズンを始める</button>
+    </div>
   </div>
   ${seasonDone() ? postseasonSectionHTML() : ''}
   ${gachaHTML()}
@@ -208,12 +225,44 @@ function linescoreHTML(game: Game): string {
   </table>`;
 }
 
+function pencilBarsHTML(batter: Player, game: Game): string {
+  const [p1, p2] = pencilSummary(pencilsFor(batter, game));
+  const bar = (label: string, segs: { key: string; label: string; pct: number }[]) => `
+    <div class="pencil-bar-row">
+      <div class="pencil-bar-label">${label}</div>
+      <div class="pencil-bar">${segs.map((x) => {
+        const pct = Math.round(x.pct);
+        // 項目名が収まる幅のときだけ名前も出す（狭い面は％のみ。色の凡例を下に表示）
+        const text = x.pct >= x.label.length * 4.5 + 5 ? `${x.label}<small>${pct}%</small>` : x.pct >= 6 ? `<small>${pct}%</small>` : '';
+        return `<div class="seg seg-${x.key}" style="flex:${x.pct}" title="${x.label} ${pct}%">${text}</div>`;
+      }).join('')}</div>
+    </div>`;
+  const legend = [['hit', 'ヒット・2ベース'], ['walk', '四球'], ['otto', 'おっと'], ['hr', 'HR'], ['k', '三振'], ['out', '凡打']]
+    .map(([k, l]) => `<span><i class="seg-${k}"></i>${l}</span>`).join('');
+  return `<div class="pencil-bars"><div class="pencil-title">${batter.name}の鉛筆</div>${bar('1本目', p1)}${bar('2本目', p2)}<div class="pencil-legend">${legend}</div></div>`;
+}
+
+/** ボックススコア（試合の個人打撃成績） */
+function boxScoreHTML(game: Game): string {
+  const table = (side: 'away' | 'home') => {
+    const team = game[side];
+    const rows = team.battingOrder.map((p, i) => {
+      const b = game.box[p.id] ?? { pa: 0, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, k: 0, r: 0, sb: 0 };
+      const hot = b.h >= 3 || b.hr >= 1 || b.rbi >= 3;
+      return `<tr class="${hot ? 'hot' : ''}"><td>${i + 1}</td><td class="name">${p.name}<span class="muted" style="font-size:9px;">(${p.pos})</span></td><td>${b.ab}</td><td>${b.h}</td><td>${b.rbi}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.sb}</td></tr>`;
+    }).join('');
+    return `<div class="box-team">${team.name}</div>
+      <table class="compact-table box"><thead><tr><th></th><th class="namehead">選手</th><th>打</th><th>安</th><th>点</th><th>本</th><th>四</th><th>三</th><th>盗</th></tr></thead><tbody>${rows}</tbody></table>`;
+  };
+  return `<details class="howto" open><summary>ボックススコア</summary>${table('away')}${table('home')}</details>`;
+}
+
 function playScreenHTML(game: Game): string {
   const battingKey = currentBattingKey(game);
   const batter = !game.finished ? currentBatter(game) : null;
   const outsDots = [0, 1].map((i) => `<span class="dot ${i < game.outs ? 'on' : ''}"></span>`).join('');
   const bases = game.bases;
-  const runnerText = `1塁: <b>${bases.first ? bases.first.name : '-'}</b>　2塁: <b>${bases.second ? bases.second.name : '-'}</b>　3塁: <b>${bases.third ? bases.third.name : '-'}</b>`;
+  const runnerText = `1塁 <b>${bases.first ? bases.first.name : '-'}</b>　2塁 <b>${bases.second ? bases.second.name : '-'}</b>　3塁 <b>${bases.third ? bases.third.name : '-'}</b>`;
 
   const pencil2Active = game.pencilStage === 'awaitingPencil2';
   const p1Text = game.pendingP1 ? FACE_LABEL[game.pendingP1] : (game.lastPlay ? FACE_LABEL[game.lastPlay.p1] : '?');
@@ -226,82 +275,63 @@ function playScreenHTML(game: Game): string {
         <div class="ability-flash-note">${game.lastPlay.abilityNote}</div>
       </div>`
     : '';
-
   const logHtml = game.log.slice(-12).map((l) => `<div>${l}</div>`).join('');
 
-  let finishHtml = '';
+  const scoreboard = `
+    <div class="scoreboard">
+      <div class="sb-team"><div class="nm">${game.away.name}</div><div class="sc">${game.score.away}</div></div>
+      <div class="sb-mid">
+        <div class="sb-inning">${game.finished ? '試合終了' : `${game.inning}回${game.half === 'top' ? '表 ▲' : '裏 ▼'}`}</div>
+        ${game.finished ? '' : `<div class="sb-outs">${outsDots} <span class="muted" style="font-size:10px;">OUT</span></div>`}
+      </div>
+      <div class="sb-team"><div class="nm">${game.home.name}</div><div class="sc">${game.score.home}</div></div>
+    </div>
+    ${linescoreHTML(game)}`;
+
   if (game.finished) {
     const w = game.winner === 'tie' ? '引き分け' : (game.winner === 'home' ? game.home.name : game.away.name) + ' の勝利！';
-    finishHtml = `
+    return `
+    <div class="card">
+      ${scoreboard}
       ${abilityFlashHtml}
       <div class="finish-banner">
-      <div>試合終了</div>
-      <div class="score">${game.away.name} ${game.score.away} - ${game.score.home} ${game.home.name}</div>
-      <div class="muted">${w}</div>
-      <div class="row" style="justify-content:center;margin-top:10px;">
-        <button class="btn" id="backToScheduleBtn">${game.seriesKey ? '順位表・シリーズに戻る' : 'スケジュールに戻る'}</button>
+        <div class="score">${w}</div>
+        <button class="btn" id="backToScheduleBtn">${game.seriesKey ? '順位表・シリーズに戻る' : '日程に戻る'}</button>
       </div>
+      ${boxScoreHTML(game)}
+      <div class="log-box" id="logBox">${logHtml}</div>
     </div>`;
   }
 
   return `
-  <div class="card">
-    <div class="matchup"><b>${game.away.name}</b> @ <b>${game.home.name}</b></div>
-
-    <div class="scoreboard">
-      <div class="sb-team"><div class="nm">${game.away.name}</div><div class="sc">${game.score.away}</div></div>
-      <div class="sb-mid">
-        <div class="sb-inning">${game.inning}回${game.half === 'top' ? '表 ▲' : '裏 ▼'}</div>
-        <div class="sb-outs">${outsDots} <span class="muted" style="font-size:10px;">OUT</span></div>
-      </div>
-      <div class="sb-team"><div class="nm">${game.home.name}</div><div class="sc">${game.score.home}</div></div>
-    </div>
-
-    ${linescoreHTML(game)}
-
-    <div class="diamond-wrap">
+  <div class="card play-card">
+    ${scoreboard}
+    <div class="field-row">
       <div class="diamond">
         <div class="base" id="b-second"></div>
         <div class="base" id="b-first"></div>
         <div class="base" id="b-third"></div>
         <div id="b-home"></div>
       </div>
+      ${batter ? `
+      <div class="batter-card">
+        <div class="nm"><span class="pos">${batter.pos}</span>${batter.name}<span class="muted" style="font-size:10.5px;font-weight:400;">　${game[battingKey].name}</span></div>
+        <div class="stats">パワー${gradeBadge(batter.power)} ミート${gradeBadge(batter.contact)} 走力${gradeBadge(batter.speed)}${batter.ability ? `<span class="pill" style="margin-left:4px;">${ABILITY_INFO[batter.ability].label}</span>` : ''}</div>
+        <div class="runners-text">${runnerText}</div>
+      </div>` : ''}
     </div>
-    <div class="runners-text">${runnerText}</div>
-
-    ${batter ? `
-    <div class="batter-card">
-      <div class="pos">${batter.pos}</div>
-      <div class="info">
-        <div class="nm">${game[battingKey].name} ・ ${batter.name}</div>
-        <div class="stats">
-          <span>パワー</span>${gradeBadge(batter.power)}
-          <span style="margin-left:6px;">ミート</span>${gradeBadge(batter.contact)}
-          <span style="margin-left:6px;">走力</span>${gradeBadge(batter.speed)}
-        </div>
-      </div>
-    </div>` : ''}
-
-    ${!game.finished ? `
+    ${batter ? pencilBarsHTML(batter, game) : ''}
     <div class="dice-area">
-      <div>
-        <div class="hex" id="hex1">${p1Text}</div>
-        <div class="hex-label">1本目</div>
-      </div>
-      <div>
-        <div class="hex ${pencil2Active ? '' : 'dim'}" id="hex2">${p2Text}</div>
-        <div class="hex-label">2本目</div>
-      </div>
+      <div><div class="hex" id="hex1">${p1Text}</div><div class="hex-label">1本目</div></div>
+      <div><div class="hex ${pencil2Active ? '' : 'dim'}" id="hex2">${p2Text}</div><div class="hex-label">2本目</div></div>
     </div>
     <div class="play-note" id="playNote">${noteText}</div>
     ${abilityFlashHtml}
-    <div class="roll-btn-wrap">
-      <button class="btn roll-btn" id="rollBtn" aria-disabled="${UI.rolling}">${btnLabel}</button>
-      <div class="hold-hint">長押しで早送り</div>
-    </div>
-    ` : finishHtml}
-
     <div class="log-box" id="logBox">${logHtml}</div>
+  </div>
+  <div class="roll-dock">
+    <button class="btn roll-btn" id="rollBtn" aria-disabled="${UI.rolling}">${btnLabel}</button>
+    <div class="hold-hint">長押しで早送り</div>
   </div>
   `;
 }
@@ -341,6 +371,16 @@ function listenForRelease(): void {
   window.addEventListener('touchcancel', release);
   window.addEventListener('blur', release);
 }
+/** 観戦中の試合を1本進める。マイチームの試合が終わったら、その日の他球団の試合も消化する */
+function rollLiveStep(game: Game): ReturnType<typeof rollStep> {
+  const res = rollStep(game);
+  if (game.finished && game.scheduleId) {
+    const g = DB.schedule.find((x) => x.id === game.scheduleId);
+    if (g) completeDaysThrough(g.day);
+  }
+  return res;
+}
+
 function pressRoll(): void {
   if (UI.rolling || !UI.liveGame || UI.liveGame.finished) return;
   const gameRef = UI.liveGame;
@@ -351,7 +391,7 @@ function pressRoll(): void {
     holdRepeatTimer = setInterval(() => {
       if (UI.tab !== 'play' || UI.liveGame !== gameRef || gameRef.finished) { clearHoldTimers(); return; }
       // 早送り中はアニメーションを省略し、1打席ずつ素早く処理して都度再描画する
-      rollStep(gameRef);
+      rollLiveStep(gameRef);
       render();
     }, HOLD_REPEAT_MS);
   }, HOLD_THRESHOLD_MS);
@@ -367,7 +407,7 @@ function doRoll(): void {
   const rollBtn = $('#rollBtn');
   rollBtn?.setAttribute('aria-disabled', 'true'); // disabled にすると mouseup が届かず長押し判定が解けないため、見た目だけ無効にする
 
-  const res = rollStep(game); // エンジンは同期的に結果を確定する
+  const res = rollLiveStep(game); // エンジンは同期的に結果を確定する
 
   const hex = $(wasAwaiting ? '#hex2' : '#hex1');
   const faces: readonly string[] = wasAwaiting ? P2_FACES : P1_FACES;
@@ -394,9 +434,6 @@ function on(sel: string, handler: () => void): void {
   if (el) el.onclick = handler;
 }
 
-function simScheduleGames(games: ScheduleGame[]): void {
-  games.forEach((g) => autoSimGame(newGame(teamById(g.home)!, teamById(g.away)!, g.id)));
-}
 
 function confirmNewSeason(): void {
   const done = seasonDone();
@@ -435,7 +472,7 @@ function confirmNewSeason(): void {
         if (myChange) managerNote = `　⚾自チームの監督が交代：${myChange.from || '新規'}→${myChange.to}（${myChange.reason}）。他${changes.length - 1}球団でも監督交代あり。`;
         else managerNote = `　${changes.length}球団で監督交代がありました。`;
       }
-      UI.flash = `前シーズンの成績を球団史に記録し、新シーズンを開始しました。${retiredCount > 0 ? `（${RETIREMENT_AGE}歳定年で${retiredCount}名が引退し、新人と入れ替わりました）` : ''}${managerNote}`;
+      UI.flash = `前シーズンの成績を球団史に記録し、新シーズンを開始しました。${retiredCount > 0 ? `（ベテラン${retiredCount}名が引退し、新人と入れ替わりました）` : ''}${managerNote}`;
       render();
     }).catch((e: unknown) => {
       beginNewSeason();
@@ -473,18 +510,15 @@ export function wirePlayEvents(): void {
     };
   });
 
-  on('#simOthersBtn', () => {
-    const others = DB.schedule.filter((g) => !g.played && g.home !== UI.myTeamId && g.away !== UI.myTeamId);
-    simScheduleGames(others);
-    UI.flash = `自チーム以外の${others.length}試合を消化しました。`;
+  const simDays = (n: number) => {
+    const before = currentDay(DB.schedule);
+    simulateDays(n);
+    const after = currentDay(DB.schedule);
+    UI.flash = after === null ? 'レギュラーシーズンの全日程が終わりました。' : `第${before}日〜第${after - 1}日を自動で消化しました。`;
     render();
-  });
-  on('#simMineBtn', () => {
-    const mine = DB.schedule.filter((g) => !g.played && (g.home === UI.myTeamId || g.away === UI.myTeamId));
-    simScheduleGames(mine);
-    UI.flash = `自チームの${mine.length}試合を消化しました。`;
-    render();
-  });
+  };
+  on('#simWeekBtn', () => simDays(6));
+  on('#simSeasonBtn', () => simDays(999));
   on('#simPostseasonBtn', () => {
     if (!seasonDone()) {
       UI.flash = 'レギュラーシーズンが終わってから実行できます。';
@@ -524,6 +558,8 @@ export function wirePlayEvents(): void {
   $$('[data-play]').forEach((b) => {
     b.onclick = () => {
       const g = DB.schedule.find((s) => s.id === b.dataset.play)!;
+      completeDaysThrough(g.day - 1); // 前日までの試合が残っていれば先に消化
+      UI.flash = null;
       UI.liveGame = newGame(teamById(g.home)!, teamById(g.away)!, g.id);
       render();
     };
@@ -531,9 +567,11 @@ export function wirePlayEvents(): void {
   $$('[data-sim]').forEach((b) => {
     b.onclick = () => {
       const g = DB.schedule.find((s) => s.id === b.dataset.sim)!;
-      const h = teamById(g.home)!, a = teamById(g.away)!;
-      const game = autoSimGame(newGame(h, a, g.id));
-      UI.flash = `${a.name} ${game.score.away} - ${game.score.home} ${h.name}`;
+      completeDaysThrough(g.day - 1);
+      const game = simulateScheduleGame(g);
+      completeDaysThrough(g.day);
+      UI.flash = null;
+      UI.liveGame = game; // 試合終了画面（ボックススコア）を見せる
       render();
     };
   });

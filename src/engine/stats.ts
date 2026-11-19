@@ -23,6 +23,16 @@ export function avgOf(p: Player): number { return avgOfStats(p.stats); }
 export function obpOf(p: Player): number { return obpOfStats(p.stats); }
 export function slgOf(p: Player): number { return slgOfStats(p.stats); }
 export function opsOf(p: Player): number { return opsOfStats(p.stats); }
+/** 規定打席（NPBと同じく、所属チームの試合数×3.1） */
+export function qualifyingPA(team: Pick<Team, 'wins' | 'losses' | 'ties'>): number {
+  return Math.floor((team.wins + team.losses + team.ties) * 3.1);
+}
+/** 規定打席に達しているか（チームがまだ試合をしていなければ false） */
+export function isQualified(p: Player, team: Pick<Team, 'wins' | 'losses' | 'ties'>): boolean {
+  const need = qualifyingPA(team);
+  return need > 0 && p.stats.pa >= need;
+}
+
 export function winPct(t: Pick<Team, 'wins' | 'losses'>): number {
   const d = t.wins + t.losses;
   return d > 0 ? t.wins / d : 0;

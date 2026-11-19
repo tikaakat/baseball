@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { emptyBases, finalizeAtBat } from '../src/engine/atbat';
+import { describe, expect, it } from 'vitest';
+import { pencilsFor } from '../src/engine/atbat';
 import { newGame } from '../src/engine/game';
 import { MANAGER_TYPES } from '../src/engine/data';
 import { hardResetLeague } from '../src/engine/season';
@@ -61,22 +61,31 @@ describe('監督', () => {
     });
     expect(managerEffects(null)).toEqual({});
   });
-  it('一発攻勢（パワー+20%）の監督だと、同じ出目でも二塁打が本塁打に伸びる', () => {
+  it('監督の采配が打者の鉛筆に反映される', () => {
     hardResetLeague();
-    const atBat = (managerType: string) => {
-      const game = newGame(DB.teams[0], DB.teams[1], null); // 1回表：攻撃はビジター（DB.teams[1]）
-      game.away.manager!.type = managerType;
-      const batter = { ...game.away.roster[0], power: 150, speed: 1, ability: null };
-      // 乱数を固定：パワー150だと二塁打止まり、+20%（180）なら本塁打に伸びる値
-      const spy = vi.spyOn(Math, 'random').mockReturnValue(0.07);
-      try {
-        return finalizeAtBat(batter, 'otto', 'double', emptyBases(), game).rawResult;
-      } finally {
-        spy.mockRestore();
-      }
-    };
-    expect(atBat('none')).toBe('double');
-    expect(atBat('power')).toBe('hr');
+    const game = newGame(DB.teams[0], DB.teams[1], null); // 1回表：攻撃はビジター（DB.teams[1]）
+    const batter = { ...game.away.roster[0], power: 150, contact: 150, speed: 150, ability: null };
+    const pencilsWith = (type: string) => { game.away.manager!.type = type; return pencilsFor(batter, game); };
+    const none = pencilsWith('none');
+    expect(pencilsWith('power').p2.hr).toBeGreaterThan(none.p2.hr * 1.2);
+    expect(pencilsWith('contactball').p1.hit).toBeGreaterThan(none.p1.hit);
+    expect(pencilsWith('patient').p1.walk).toBeGreaterThan(none.p1.walk * 1.2);
+  });
+});
+
+describe('打者の鉛筆', () => {
+  it('どの能力でも各面の確率の合計は1で、パワーが高いほどHRの面が大きい', () => {
+    hardResetLeague();
+    const base = DB.teams[0].roster[0];
+    for (const v of [1, 64, 128, 192, 256]) {
+      const p = pencilsFor({ ...base, power: v, contact: v, speed: v }, null);
+      const sum = (o: Record<string, number>) => Object.values(o).reduce((a, x) => a + x, 0);
+      expect(sum(p.p1)).toBeCloseTo(1, 6);
+      expect(sum(p.p2)).toBeCloseTo(1, 6);
+      Object.values({ ...p.p1, ...p.p2 }).forEach((x) => expect(x).toBeGreaterThanOrEqual(0));
+    }
+    const weak = pencilsFor({ ...base, power: 30 }, null), strong = pencilsFor({ ...base, power: 240 }, null);
+    expect(strong.p2.hr).toBeGreaterThan(weak.p2.hr * 4);
   });
 });
 

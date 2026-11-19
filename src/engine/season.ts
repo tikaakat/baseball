@@ -4,7 +4,7 @@ import { resetPlayerForNewSeason, resetPlayerSeq } from './player';
 import { createSchedule } from './schedule';
 import { finalizeStandings } from './standings';
 import { DB } from './state';
-import { createTeams, forceRetireOldPlayers, hireNewManager, reorderBattingOrderByPerformance } from './team';
+import { createTeams, hireNewManager, reorderBattingOrderByPerformance, retireVeterans } from './team';
 import type { ManagerChange, Player, Team } from './types';
 
 /** 完全リセット：チーム名・選手も含めて全てを新規生成する */
@@ -36,7 +36,7 @@ export function startNewSeason(): void {
 
     t.wins = 0; t.losses = 0; t.ties = 0; t.runsFor = 0; t.runsAgainst = 0;
     t.roster.forEach((p) => resetPlayerForNewSeason(p));
-    allRetired = allRetired.concat(forceRetireOldPlayers(t));
+    allRetired = allRetired.concat(retireVeterans(t));
 
     if (t.manager) t.manager.tenureYears--;
     const shouldReplace = !t.manager || t.manager.tenureYears <= 0 || t.consecutiveBClass >= 3;

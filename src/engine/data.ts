@@ -139,8 +139,57 @@ export const MANAGER_TYPES: ManagerType[] = [
   { key: 'unlucky', label: '迷采配', desc: '併殺になりやすい（不運な監督）', gidpResist: -0.15 },
 ];
 
-export const RETIREMENT_AGE = 45; // これを超えたら強制引退
+/** 引退：startAge 歳から、base + perYear×(年齢−startAge) の確率で引退（能力が weakOverall 未満なら +weakBonus）。forcedAge で必ず引退 */
+export const RETIREMENT = { startAge: 33, base: 0.12, perYear: 0.10, weakOverall: 105, weakBonus: 0.20, forcedAge: 42 } as const;
+/** 新人（ガチャ・引退の穴埋め）の能力の上限。1〜この値で生成し、若いうちに伸びる */
+export const ROOKIE_MAX_STAT = 230;
+/** 新人の入団年齢（高卒〜社会人） */
+export const ROOKIE_AGE = [20, 25] as const;
 export const GROWTH_PEAK = { early: 25, normal: 28, late: 32 } as const;
 /** 打力上位から割り当てる打順の優先順 */
 export const BATTING_SLOT_PRIORITY = [3, 4, 2, 5, 1, 6, 7, 8, 9];
 export const SERIES_KEYS = ['H1', 'B1', 'H2', 'B2', 'JS'] as const;
+
+/**
+ * バランス調整用の係数（NPBの近年の成績に合わせて調整。tests/balance.test.ts で確認）
+ * c = ミート、pw = パワー、s = 走力（いずれも 0〜1 に正規化した値）
+ */
+export const TUNING = {
+  /** 1本目の鉛筆 */
+  p1: {
+    hit: { base: 0.148, contact: 0.042 },        // ヒット = base + contact×c
+    walk: 0.082,
+    k: { base: 0.195, contact: -0.08, power: 0.03 },
+    otto: { base: 0.165, power: 0.075 },         // おっと（2本目へ）
+    flyShare: { base: 0.40, power: 0.16 },       // 残り（凡打）のうちフライの割合
+  },
+  /** 2本目の鉛筆（おっと時） */
+  p2: {
+    hr: { base: 0.016, power: 0.165 },            // HR = base + power×pw²（パワーが高いほど急に伸びる）
+    double: { base: 0.15, contact: 0.04 },
+    k: 0.16,
+    flyShare: 0.5,
+  },
+  /** 走力による長打の上積み */
+  stretch: { singleToDouble: 0.20, singleMinSpeed: 0.4, doubleToTriple: 0.13 },
+  /** 走者の進塁 */
+  running: {
+    singleScoreFrom2nd: { base: 0.42, speed: 0.38, twoOutBonus: 0.30 },
+    single1stTo3rd: { base: 0.08, speed: 0.30, twoOutBonus: 0.10 },
+    doubleScoreFrom1st: { base: 0.25, speed: 0.45, twoOutBonus: 0.20 },
+    sacFly: 0.65,                                 // 三塁走者が犠牲フライで還る確率
+    flyTag2ndTo3rd: { base: 0.15, speed: 0.25 },
+    groundAdvance2ndTo3rd: 0.5,                   // 走者二塁（一塁なし）のゴロで三進
+    groundScoreFrom3rd: { base: 0.25, speed: 0.30 }, // 走者三塁（一塁なし）のゴロで生還
+  },
+  /** 併殺：走者一塁・2アウト未満のゴロで、この確率で併殺（打者走力・監督・堅実で下がる） */
+  doublePlay: { base: 0.60, speed: -0.40, steadyMult: 0.7, min: 0.05 },
+  /** 盗塁 */
+  steal: { attemptMinSpeed: 0.3, attempt: 0.21, success: { base: 0.48, speed: 0.33 }, stealer: { attemptMult: 1.8, successBonus: 0.08 } },
+  /** 「凡打→ヒット」系の特殊能力が発動する確率（打率への上乗せがそれぞれ +.020前後になるよう調整） */
+  abilityHit: { leadoff: 0.15, comeback: 0.07, luckySeven: 0.25, inningStarter: 0.10 },
+  /** 失策率（ゴロ・フライのアウトに対して） */
+  errorRate: 0.026,
+  /** 延長の上限（NPB同様。これを超えたら引き分け） */
+  maxInnings: 12,
+} as const;

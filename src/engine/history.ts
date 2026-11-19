@@ -47,7 +47,9 @@ const standingRecords = (list: Team[]) =>
 export async function archiveCurrentSeason(): Promise<SeasonRecord> {
   const { H, B } = finalizeStandings();
   const history = await loadSeasonHistory();
-  const nextNum = history.length ? Math.max(...history.map((s) => s.seasonNum)) + 1 : 1;
+  // シーズン番号は選手の「初登場シーズン」と揃える（古いデータと重なる場合だけ後ろにずらす）
+  const maxRecorded = history.length ? Math.max(...history.map((s) => s.seasonNum)) : 0;
+  const nextNum = DB.currentSeasonNum > maxRecorded ? DB.currentSeasonNum : maxRecorded + 1;
   const champion = DB.postseason?.champion ?? null;
   const record: SeasonRecord = {
     seasonNum: nextNum,

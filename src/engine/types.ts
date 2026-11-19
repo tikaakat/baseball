@@ -107,6 +107,8 @@ export interface ScheduleGame {
   played: boolean;
   result: { home: number; away: number; winner: Winner } | null;
   order: number;
+  /** 何日目の試合か（1〜144） */
+  day: number;
 }
 
 export type Side = 'home' | 'away';
@@ -144,6 +146,9 @@ export interface LastPlay {
 
 export type SeriesKey = 'H1' | 'B1' | 'H2' | 'B2' | 'JS';
 
+/** 1試合の個人打撃成績（ボックススコア） */
+export interface BoxLine { pa: number; ab: number; h: number; hr: number; rbi: number; bb: number; k: number; r: number; sb: number }
+
 export interface Game {
   scheduleId: string | null;
   home: Team;
@@ -165,6 +170,8 @@ export interface Game {
   inningRuns: Record<Side, number[]>;
   hits: Record<Side, number>;
   errors: Record<Side, number>;
+  /** 選手ID → この試合の打撃成績 */
+  box: Record<string, BoxLine>;
   seriesKey?: SeriesKey;
 }
 

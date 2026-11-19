@@ -1,8 +1,9 @@
 /* 試合の進行 */
-import { currentBattingKey, emptyBases, finalizeAtBat, resolveAtBat, rollPencil1, rollPencil2 } from './atbat';
+import { currentBattingKey, emptyBases, finalizeAtBat, pencilsFor, resolveAtBat, rollPencil1, rollPencil2 } from './atbat';
+import { TUNING } from './data';
 import { managerEffects } from './team';
 import { DB } from './state';
-import type { Game, P1Face, P2Face, Play, Player, SeriesKey, Team } from './types';
+import type { BoxLine, Game, P1Face, P2Face, Play, Player, SeriesKey, Team } from './types';
 import { frac } from './util';
 
 export function newGame(homeTeam: Team, awayTeam: Team, scheduleId: string | null, seriesKey?: SeriesKey): Game {
@@ -13,6 +14,7 @@ export function newGame(homeTeam: Team, awayTeam: Team, scheduleId: string | nul
     finished: false, winner: null, pencilStage: 'ready', pendingP1: null, lastPlay: null,
     battedThisGame: new Set(),
     inningRuns: { home: [], away: [] }, hits: { home: 0, away: 0 }, errors: { home: 0, away: 0 },
+    box: {},
     seriesKey,
   };
 }
@@ -25,6 +27,10 @@ export function currentBatter(game: Game): Player {
 function pushLog(game: Game, text: string): void {
   game.log.push(`${game.inning}回${game.half === 'top' ? '表' : '裏'} ${text}`);
   if (game.log.length > 200) game.log.shift();
+}
+
+function boxOf(game: Game, p: Player): BoxLine {
+  return (game.box[p.id] ??= { pa: 0, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, k: 0, r: 0, sb: 0 });
 }
 
 /** ポストシーズンの成績はレギュラーシーズンと分けて集計する */
@@ -66,9 +72,18 @@ export function applyPlay(game: Game, play: Play): void {
     // 失策した野手の個人成績に加算（ゴールデングラブ賞の集計に使う）
     if (play.errorFielder) statsTarget(game, play.errorFielder).errors++;
   }
+  // ボックススコア
+  const box = boxOf(game, b);
+  box.pa++;
+  if (!sacFlyCounts && play.rawResult !== 'walk') box.ab++;
+  if (play.rawResult === 'walk') box.bb++;
+  if (play.rawResult === 'k') box.k++;
+  if (play.rawResult === 'hit' || play.rawResult === 'double' || play.rawResult === 'triple' || play.rawResult === 'hr') box.h++;
+  if (play.rawResult === 'hr') box.hr++;
+
   if (runsThisPlay.length) {
-    if (play.rawResult !== 'error') target.rbi += runsThisPlay.length; // 失策での生還は打点にしない
-    runsThisPlay.forEach((p) => { statsTarget(game, p).r++; });
+    if (play.rawResult !== 'error') { target.rbi += runsThisPlay.length; box.rbi += runsThisPlay.length; } // 失策での生還は打点にしない
+    runsThisPlay.forEach((p) => { statsTarget(game, p).r++; boxOf(game, p).r++; });
     game.score[battingKey] += runsThisPlay.length;
     game.inningRuns[battingKey][game.inning - 1] += runsThisPlay.length;
   }
@@ -97,7 +112,7 @@ function checkHalfInningEnd(game: Game): void {
       if (game.inning - 1 >= 9 && game.score.home !== game.score.away) {
         game.inning--; finishGame(game); return;
       }
-      if (game.inning > 15) { finishGame(game, true); return; }
+      if (game.inning > TUNING.maxInnings) { game.inning--; finishGame(game, true); return; }
     }
   } else if (game.half === 'bottom' && game.inning >= 9 && game.score.home > game.score.away) {
     finishGame(game);
@@ -109,15 +124,17 @@ function attemptSteal(game: Game): { success: boolean; runner: Player } | null {
   if (game.finished) return null;
   const runner = game.bases.first;
   if (!runner || game.bases.second) return null;
+  const T = TUNING.steal;
   const stealMult = managerEffects(game[currentBattingKey(game)].manager).stealBoost || 1;
   const isStealer = runner.ability === 'stealer'; // 俊足盗塁王：仕掛けやすく、成功率も高い
-  const attemptChance = Math.max(0, frac(runner.speed) - 0.3) * 0.22 * stealMult * (isStealer ? 1.8 : 1);
+  const attemptChance = Math.max(0, frac(runner.speed) - T.attemptMinSpeed) * T.attempt * stealMult * (isStealer ? T.stealer.attemptMult : 1);
   if (Math.random() >= attemptChance) return null;
-  const successChance = Math.min(0.95, 0.55 + frac(runner.speed) * 0.35 + (isStealer ? 0.08 : 0));
+  const successChance = Math.min(0.95, T.success.base + frac(runner.speed) * T.success.speed + (isStealer ? T.stealer.successBonus : 0));
   const success = Math.random() < successChance;
   const target = statsTarget(game, runner);
   if (success) {
     target.sb = (target.sb || 0) + 1;
+    boxOf(game, runner).sb++;
     game.bases.second = runner;
     game.bases.first = null;
     pushLog(game, `${runner.name}、盗塁成功！2塁へ`);
@@ -184,7 +201,7 @@ export function rollStep(game: Game): RollStepResult | null {
   }
   const batter = currentBatter(game);
   if (game.pencilStage === 'ready') {
-    const p1 = rollPencil1();
+    const p1 = rollPencil1(pencilsFor(batter, game));
     game.pendingP1 = p1;
     if (p1 === 'otto') {
       game.pencilStage = 'awaitingPencil2';
@@ -196,7 +213,7 @@ export function rollStep(game: Game): RollStepResult | null {
     return { stage: 'resolved', p1, p2: null, play };
   }
   const p1 = game.pendingP1!;
-  const p2 = rollPencil2();
+  const p2 = rollPencil2(pencilsFor(batter, game));
   game.pencilStage = 'ready'; game.pendingP1 = null;
   const play = finalizeAtBat(batter, p1, p2, game.bases, game);
   applyPlay(game, play);

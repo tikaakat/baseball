@@ -25,7 +25,8 @@ src/
     game.ts        試合の進行
     player.ts      選手の生成・成長・退団
     team.ts        ロースター・打順・監督・ガチャ・引退
-    schedule.ts    日程
+    schedule.ts    日程（1日6試合×144日）
+    days.ts        日ごとの試合消化
     standings.ts   順位表
     postseason.ts  クライマックスシリーズ・日本シリーズ
     awards.ts      表彰
@@ -34,6 +35,6 @@ src/
     storage.ts     保存先（localStorage など）の切り替え
     season.ts      リーグ初期化・シーズン移行
   ui/            各タブの描画とイベント
-tests/           Vitest（シーズン進行・バランス・保存・能力と監督の効果）
+tests/           Vitest（日程・シーズン進行・NPBとのバランス比較・長期シミュレーション・保存・能力と監督）
 original/        移行元の単一HTML版
 ```

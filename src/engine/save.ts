@@ -141,12 +141,16 @@ export function restoreState(data: SaveData): { myTeamId: string | null; liveGam
       home: team(sg.home), away: team(sg.away),
       bases: { first: player(sg.bases.first), second: player(sg.bases.second), third: player(sg.bases.third) },
       battedThisGame: new Set(sg.battedThisGame),
+      box: sg.box ?? {}, // 古い保存データには無い
     };
   }
 
+  // 古い保存データには「何日目」が無いので、試合順から割り振る
+  const schedule = data.db.schedule.map((g) => (g.day ? g : { ...g, day: Math.floor((g.order - 1) / (teams.length / 2)) + 1 }));
+
   // ここまで例外が出なければ確定
   DB.teams = teams;
-  DB.schedule = data.db.schedule;
+  DB.schedule = schedule;
   DB.postseason = postseason;
   DB.leagueNames = data.db.leagueNames;
   DB.gachaDoneThisCycle = data.db.gachaDoneThisCycle;
