@@ -35,6 +35,21 @@ describe('シーズン進行', () => {
   });
 });
 
+describe('補強ガチャ', () => {
+  it('1回のオフに1回しか引けず、新しいシーズンでまた引ける', () => {
+    hardResetLeague();
+    simWholeSeason();
+    autoCompletePostseason();
+    const ids = () => DB.teams.flatMap((t) => [...t.roster, ...t.pitchers].map((p) => p.id)).join(',');
+    gachaSwapAllTeams('t0', null);
+    const after1 = ids();
+    expect(gachaSwapAllTeams('t0', null)).toHaveLength(0);
+    expect(ids()).toBe(after1);
+    startNewSeason();
+    expect(DB.gachaDoneThisCycle).toBe(false);
+  });
+});
+
 describe('日程', () => {
   it('毎日すべての球団が1試合ずつ、144日。同一リーグ各24試合（ホーム12）、交流戦各4試合', () => {
     hardResetLeague();

@@ -231,6 +231,7 @@ function replaceWithRookie(t: Team, outgoing: Player): { outgoing: Player; incom
  * mySelectedPlayerId: 選手ID／'__skip__'なら自チームは放出しない／null なら全球団を自動判定
  */
 export function gachaSwapAllTeams(myTeamId: string | null, mySelectedPlayerId: string | null): GachaResult[] {
+  if (DB.gachaDoneThisCycle) return []; // 1回のオフにつき1回だけ
   const results: GachaResult[] = [];
   DB.teams.forEach((t) => {
     const isMine = t.id === myTeamId;

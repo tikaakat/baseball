@@ -15,7 +15,7 @@ import { gachaCandidates, gachaSwapAllTeams, worstPerformer } from '../engine/te
 import type { Game, Player, ScheduleGame, Series, SeriesKey } from '../engine/types';
 import { choice } from '../engine/util';
 import { render } from './app';
-import { $, $$, abilityBadges, abilityShort, fmt3plain, fmtEra, gradeBadge, gradeOf } from './format';
+import { $, $$, abilityBadges, abilityShort, fmt3plain, fmtEra, gradeBadge, gradeOf, shortTeamName } from './format';
 import { openConfirmModal } from './modal';
 import { latestNewsHTML } from './news';
 import { shareSeason } from './share';
@@ -43,62 +43,49 @@ function teamPickerHTML(): string {
   </div>`;
 }
 
-function gachaHTML(): string {
-  if (!seasonDone()) return '';
-  if (UI.gachaResults) {
-    const rows = UI.gachaResults.map((r) => {
-      if (r.skipped || !r.out || !r.in) {
-        return `<div class="gacha-row">
-            <div class="gacha-team">${r.team.name}${UI.myTeamId === r.team.id ? '（自チーム）' : ''}</div>
-            <div class="muted">今回は放出なし</div>
-          </div>`;
-      }
-      return `<div class="gacha-row">
-          <div class="gacha-team">${r.team.name}${r.slot ? `　${r.slot}番` : ''}</div>
-          <div class="gacha-swap">
-            <span class="gacha-out">${r.out.name}(${r.out.pos}・${r.out.age}歳)</span>
-            <span class="gacha-arrow">→</span>
-            <span class="gacha-in">★NEW★ ${r.in.name}(${r.in.pos}・${r.in.age}歳)${r.in.ability ? `<span class="pill" style="margin-left:4px;">${ABILITY_INFO[r.in.ability].label}</span>` : ''}</span>
-          </div>
-          <div class="muted" style="font-size:10.5px;">${abilityBadges(r.in)}</div>
-        </div>`;
-    }).join('');
-    const swappedCount = UI.gachaResults.filter((r) => !r.skipped).length;
-    return `<div class="card">
-        <h2>オフシーズン補強ガチャ結果</h2>
-        <div class="muted" style="margin-bottom:8px;">12球団中${swappedCount}球団が新人と入れ替わりました（年齢・成績を見て見送った球団もあります）。</div>
-        ${rows}
-        <div class="row" style="margin-top:10px;">
-          <button class="btn secondary small" id="closeGachaBtn">閉じる</button>
-        </div>
-      </div>`;
-  }
-  if (UI.gachaSelecting) {
-    const myTeam = teamById(UI.myTeamId!)!;
-    // 選択済みIDが現在のロースターに存在しない場合は安全にデフォルトへ戻す
-    const selectablePlayers = gachaCandidates(myTeam);
-    if (UI.gachaMySelection !== '__skip__' && !selectablePlayers.some((p) => p.id === UI.gachaMySelection)) {
-      UI.gachaMySelection = worstPerformer(myTeam).id;
-    }
-    const protectedCount = myTeam.roster.length + myTeam.pitchers.length - selectablePlayers.length;
-    const perf = (p: Player) => (p.pitch ? (p.pStats.outs >= 30 ? '防御率' + fmtEra(eraOf(p.pStats)) : '登板少') : (p.stats.ab >= 10 ? 'OPS' + fmt3plain(opsOf(p)) : '出場少'));
-    const opts = selectablePlayers.map((p) => `<option value="${p.id}" ${UI.gachaMySelection === p.id ? 'selected' : ''}>${p.pos} ${p.name}・${p.age}歳（${abilityShort(p)}／${perf(p)}）</option>`).join('')
-      + `<option value="__skip__" ${UI.gachaMySelection === '__skip__' ? 'selected' : ''}>――今回は誰も放出しない――</option>`;
-    return `<div class="card">
-        <h2>放出する選手を選択（${myTeam.name}）</h2>
-        <div class="muted" style="margin-bottom:8px;">自チームだけ、入れ替える1名を選んでください（初期値は成績が振るわない選手）。見送ることもできます。他11球団は年齢・成績を見て自動で判断します。入ってくる新人はランダムです。${protectedCount > 0 ? `　※加入2年未満の選手${protectedCount}名は放出候補から保護されています。` : ''}</div>
-        <select data-gachaselect="${myTeam.id}">${opts}</select>
-        <div class="row" style="margin-top:10px;">
-          <button class="btn secondary small" id="cancelGachaBtn">キャンセル</button>
-          <button class="btn small" id="confirmGachaBtn">この内容でガチャを引く</button>
-        </div>
-      </div>`;
-  }
+function gachaResultsHTML(): string {
+  if (!UI.gachaResults) return '';
+  const rows = UI.gachaResults.filter((r) => !r.skipped && r.out && r.in).map((r) => `
+    <div class="gacha-row ${UI.myTeamId === r.team.id ? 'mine' : ''}">
+      <div class="gacha-team">${r.team.name}</div>
+      <div class="gacha-swap">
+        <span class="gacha-out">${r.out!.name}（${r.out!.pos}・${r.out!.age}歳）</span>
+        <span class="gacha-arrow">→</span>
+        <span class="gacha-in">${r.in!.name}（${r.in!.pos}・${r.in!.age}歳）</span>
+      </div>
+      <div class="muted" style="font-size:10.5px;">${abilityBadges(r.in!)}${r.in!.ability ? `　<span class="pill">${ABILITY_INFO[r.in!.ability].label}</span>` : ''}</div>
+    </div>`).join('');
+  const skipped = UI.gachaResults.filter((r) => r.skipped).length;
   return `<div class="card">
-        <h2>オフシーズン補強ガチャ</h2>
-        <div class="muted" style="margin-bottom:8px;">シーズン終了後、全12球団それぞれ1名を選んで新人と入れ替えます（新人はランダム）。元に戻すことはできません。</div>
-        <button class="btn" id="gachaBtn">放出する選手を選ぶ</button>
-      </div>`;
+    <h2>補強ガチャの結果</h2>
+    ${rows || '<div class="muted">入れ替えはありませんでした。</div>'}
+    ${skipped ? `<div class="muted" style="font-size:11px;margin-top:6px;">ほか${skipped}球団は今回は見送り</div>` : ''}
+    <button class="btn secondary small" id="closeGachaBtn" style="margin-top:8px;">閉じる</button>
+  </div>`;
+}
+
+/** 補強ガチャ（1回のオフにつき1回だけ） */
+function gachaStepHTML(): string {
+  if (DB.gachaDoneThisCycle) return `<div class="muted">今オフの補強は完了しました。${UI.gachaResults ? '' : '（新人は「名鑑」で確認できます）'}</div>`;
+  if (!UI.gachaSelecting) {
+    return `<div class="muted" style="margin-bottom:6px;">各球団1名を新人と入れ替えます。自チームは放出する選手を選べます（見送りも可）。</div>
+      <button class="btn small" id="gachaBtn">放出する選手を選ぶ</button>`;
+  }
+  const myTeam = teamById(UI.myTeamId!)!;
+  const selectablePlayers = gachaCandidates(myTeam);
+  if (UI.gachaMySelection !== '__skip__' && !selectablePlayers.some((p) => p.id === UI.gachaMySelection)) {
+    UI.gachaMySelection = worstPerformer(myTeam).id;
+  }
+  const protectedCount = myTeam.roster.length + myTeam.pitchers.length - selectablePlayers.length;
+  const perf = (p: Player) => (p.pitch ? (p.pStats.outs >= 30 ? '防御率' + fmtEra(eraOf(p.pStats)) : '登板少') : (p.stats.ab >= 10 ? 'OPS' + fmt3plain(opsOf(p)) : '出場少'));
+  const opts = selectablePlayers.map((p) => `<option value="${p.id}" ${UI.gachaMySelection === p.id ? 'selected' : ''}>${p.pos} ${p.name}・${p.age}歳（${abilityShort(p)}／${perf(p)}）</option>`).join('')
+    + `<option value="__skip__" ${UI.gachaMySelection === '__skip__' ? 'selected' : ''}>今回は誰も放出しない</option>`;
+  return `<div class="muted" style="margin-bottom:6px;">放出する1名（初期値は成績が振るわない選手）${protectedCount > 0 ? `。加入2年未満の${protectedCount}名は対象外` : ''}</div>
+    <select data-gachaselect="${myTeam.id}">${opts}</select>
+    <div class="row" style="margin-top:8px;">
+      <button class="btn small" id="confirmGachaBtn">ガチャを引く（取り消し不可）</button>
+      <button class="btn secondary small" id="cancelGachaBtn">やめる</button>
+    </div>`;
 }
 
 function vsLabel(g: ScheduleGame): string {
@@ -106,72 +93,93 @@ function vsLabel(g: ScheduleGame): string {
   return `${g.home === UI.myTeamId ? 'vs' : '@'} ${opp.name}`;
 }
 
+/** 次の試合の予告先発（ローテーションの順番を進めずに見るだけ） */
+function probableStarter(teamId: string): Player | undefined {
+  const t = teamById(teamId)!;
+  const rot = t.staff.rotation.map((id) => findPlayer(t, id)).filter((p): p is Player => !!p);
+  return rot.length ? rot[(t.rotationIdx || 0) % rot.length] : undefined;
+}
+
+function resultMark(g: ScheduleGame): string {
+  const r = g.result!;
+  const my = g.home === UI.myTeamId ? r.home : r.away, opp = g.home === UI.myTeamId ? r.away : r.home;
+  const mark = r.winner === 'tie' ? '△' : my > opp ? '○' : '●';
+  return `<span class="pill ${mark === '○' ? 'win' : mark === '●' ? 'lose' : ''}">${mark} ${my}-${opp}</span>`;
+}
+
 function scheduleHTML(): string {
   if (!UI.myTeamId) return teamPickerHTML();
-
-  const myTeam = teamById(UI.myTeamId)!;
   const isMine = (g: ScheduleGame) => g.home === UI.myTeamId || g.away === UI.myTeamId;
   const mine = DB.schedule.filter(isMine).sort((a, b) => a.day - b.day || a.order - b.order);
   const unplayed = mine.filter((g) => !g.played);
   const played = mine.filter((g) => g.played);
   const today = unplayed[0] ?? null;
-  const flashHtml = UI.flash ? `<div class="flash">${UI.flash}</div>` : '';
 
-  const todayHtml = today ? `
-    <div class="today">
-      <div class="today-day">第${today.day}日（全${lastDay(DB.schedule)}日）</div>
-      <div class="today-vs">${vsLabel(today)}</div>
-      <div class="row" style="justify-content:center;margin-top:10px;">
-        <button class="btn" data-play="${today.id}">▶ 観る（鉛筆を転がす）</button>
-        <button class="btn secondary" data-sim="${today.id}">自動で結果だけ</button>
-      </div>
-      <div class="muted" style="text-align:center;margin-top:6px;font-size:11px;">試合が終わると、同じ日の他球団の試合も自動で進みます</div>
-      <label class="check-inline"><input type="checkbox" id="cardsChk" ${DB.options?.decisionCards === false ? '' : 'checked'}> 終盤の接戦で「勝負所カード」を出す（代打・継投などを自分で決める）</label>
-    </div>` : '<div class="muted">レギュラーシーズンの全試合が終わりました。お疲れさまでした。</div>';
+  const shareHtml = UI.lastArchived ? `<div class="card share-card row between">
+      <div><b>第${UI.lastArchived.seasonNum}シーズンのまとめ</b><div class="muted" style="font-size:11px;">結果を画像にしてSNSで共有</div></div>
+      <div class="row" style="gap:6px;"><button class="btn small" data-share="last">📤 シェア</button><button class="btn secondary small" id="closeShareBtn">✕</button></div>
+    </div>` : '';
 
-  const upcoming = unplayed.slice(1, 6).map((g) => `<div class="game-row"><div class="vs">第${g.day}日　${vsLabel(g)}</div></div>`).join('');
-  const recent = played.slice(-5).reverse().map((g) => {
-    const r = g.result!;
-    const myScore = g.home === UI.myTeamId ? r.home : r.away, oppScore = g.home === UI.myTeamId ? r.away : r.home;
-    const mark = r.winner === 'tie' ? '△' : myScore > oppScore ? '○' : '●';
-    return `<div class="game-row"><div class="vs">第${g.day}日　${vsLabel(g)}</div><span class="pill ${mark === '○' ? 'win' : mark === '●' ? 'lose' : ''}">${mark} ${myScore}-${oppScore}</span></div>`;
-  }).join('');
+  if (!today) return shareHtml + offseasonHTML() + gachaResultsHTML();
+
+  const myStarter = probableStarter(UI.myTeamId);
+  const oppId = today.home === UI.myTeamId ? today.away : today.home;
+  const oppStarter = probableStarter(oppId);
+  const starterLine = (p?: Player) => (p?.pitch ? `${p.name}<span class="muted">（球威${gradeOf(p.pitch.stuff)}・制球${gradeOf(p.pitch.control)}）</span>` : '-');
+
+  const shortVs = (g: ScheduleGame) => {
+    const opp = teamById(g.home === UI.myTeamId ? g.away : g.home)!;
+    return `${g.home === UI.myTeamId ? 'vs' : '@'} ${shortTeamName(opp.name)}`;
+  };
+  const recent = played.slice(-3).reverse().map((g) => `<div class="list-row"><span><span class="sub">${g.day}日</span> ${shortVs(g)}</span>${resultMark(g)}</div>`).join('');
+  const upcoming = unplayed.slice(1, 4).map((g) => `<div class="list-row"><span><span class="sub">${g.day}日</span> ${shortVs(g)}</span></div>`).join('');
 
   return `
-  ${flashHtml}
-  <div class="card">
-    <div class="row between">
-      <h2 style="margin:0;">マイチーム: ${myTeam.name}</h2>
-      <div class="row" style="gap:6px;">
-        <button class="btn secondary small" id="editLineupBtn">⚙ 編成</button>
-        <button class="btn secondary small" id="changeTeamBtn">変更</button>
-      </div>
+  ${shareHtml}
+  <div class="card today-card">
+    <div class="row between"><span class="muted">第${today.day}日 / 全${lastDay(DB.schedule)}日</span><button class="link-btn" id="editLineupBtn">⚙ 編成</button></div>
+    <div class="today-vs">${vsLabel(today)}</div>
+    <div class="starters">
+      <div><span class="muted">先発</span> ${starterLine(myStarter)}</div>
+      <div><span class="muted">相手</span> ${starterLine(oppStarter)}</div>
     </div>
-    <div class="muted" style="margin-top:4px;">${myTeam.wins}勝 ${myTeam.losses}敗 ${myTeam.ties}分　（${played.length}/${mine.length} 試合消化）</div>
-    ${todayHtml}
-  </div>
-  ${UI.lastArchived ? `<div class="card share-card">
-    <h2>📤 第${UI.lastArchived.seasonNum}シーズンのまとめ</h2>
-    <div class="muted" style="margin-bottom:8px;">${UI.lastArchived.champion ? `優勝は${UI.lastArchived.champion}。` : ''}結果を画像にしてSNSで共有できます。</div>
-    <div class="row"><button class="btn small" data-share="last">シェアする</button><button class="btn secondary small" id="closeShareBtn">閉じる</button></div>
-  </div>` : ''}
-  ${latestNewsHTML()}
-  ${upcoming || recent ? `<div class="card">
-    ${upcoming ? `<h2>今後の予定</h2>${upcoming}` : ''}
-    ${recent ? `<h2 style="margin-top:${upcoming ? 14 : 0}px;">最近の結果</h2>${recent}` : ''}
-  </div>` : ''}
-  <div class="card">
-    <h2>まとめて進める</h2>
-    <div class="row">
-      ${today ? `<button class="btn secondary small" id="simWeekBtn">6日分を自動</button>
-      <button class="btn secondary small" id="simSeasonBtn">シーズン終了まで自動</button>` : ''}
-      ${seasonDone() ? '<button class="btn secondary small" id="simPostseasonBtn">ポストシーズンを自動</button>' : ''}
-      <button class="btn secondary small" id="newSeasonBtn">新しいシーズンを始める</button>
+    <button class="btn play-btn" data-play="${today.id}">▶ 試合を観る</button>
+    <div class="row today-sub">
+      <button class="link-btn" data-sim="${today.id}">結果だけ見る</button>
+      <button class="link-btn" id="simWeekBtn">6日進める</button>
+      <button class="link-btn" id="simSeasonBtn">シーズン終了まで</button>
     </div>
   </div>
-  ${seasonDone() ? postseasonSectionHTML() : ''}
-  ${gachaHTML()}
+  <div class="card">
+    <div class="two-col">
+      <div><div class="section-title" style="margin-top:0;">最近</div>${recent || '<div class="muted">まだ試合がありません</div>'}</div>
+      <div><div class="section-title" style="margin-top:0;">この先</div>${upcoming || '<div class="muted">-</div>'}</div>
+    </div>
+  </div>
+  ${latestNewsHTML(3)}
   `;
+}
+
+/** レギュラーシーズン終了後：①ポストシーズン ②補強ガチャ ③新しいシーズン の順に進める */
+function offseasonHTML(): string {
+  const ps = DB.postseason;
+  const psDone = !!ps?.champion;
+  const step = (n: number, title: string, state: 'done' | 'now' | 'todo', body: string) => `
+    <div class="step ${state}"><div class="step-no">${state === 'done' ? '✓' : n}</div><div class="step-body"><div class="step-title">${title}</div>${state === 'todo' ? '' : body}</div></div>`;
+  const psBody = psDone
+    ? `<div class="muted">${POSTSEASON_NAMES.final} 優勝：<b style="color:var(--pencil);">${ps!.champion!.name}</b></div>`
+    : `<div class="row">${ps ? '' : '<button class="btn small" id="startPostseasonBtn">1試合ずつ進める</button>'}<button class="btn ${ps ? 'small' : 'secondary small'}" id="simPostseasonBtn">残りを自動で消化</button></div>`;
+  const newSeasonBody = `<button class="btn small" id="newSeasonBtn">第${DB.currentSeasonNum + 1}シーズンを始める</button>
+    <div class="muted" style="font-size:11px;margin-top:4px;">今シーズンの成績を球団史に記録してから始めます</div>`;
+  return `<div class="card">
+    <h2>シーズン終了 — オフの手続き</h2>
+    ${step(1, 'ポストシーズン', psDone ? 'done' : 'now', psBody)}
+    ${step(2, '補強ガチャ', DB.gachaDoneThisCycle ? 'done' : psDone ? 'now' : 'todo', gachaStepHTML())}
+    ${step(3, '新しいシーズン', psDone && DB.gachaDoneThisCycle ? 'now' : 'todo', newSeasonBody)}
+    ${psDone && !DB.gachaDoneThisCycle ? '<div class="muted" style="font-size:11px;margin-top:6px;">ガチャを引かずに新しいシーズンを始めると、全球団おまかせで入れ替えます。<button class="link-btn" id="newSeasonBtn2">このまま始める</button></div>' : ''}
+  </div>
+  ${ps && !psDone ? postseasonSectionHTML() : ''}
+  ${psDone ? `<details class="howto"><summary>ポストシーズンの結果</summary>${postseasonSectionHTML()}</details>` : ''}`;
 }
 
 /* ---------- ポストシーズン ---------- */
@@ -608,7 +616,7 @@ export function wirePlayEvents(): void {
       void shareSeason(UI.lastArchived).then((msg) => { UI.flash = msg; render(); });
     };
   });
-  on('#editLineupBtn', () => { UI.tab = 'roster'; UI.rosterTeamId = UI.myTeamId; render(); });
+  on('#editLineupBtn', () => { UI.tab = 'roster'; UI.rosterTeamId = UI.myTeamId; UI.rosterTab = 'edit'; render(); });
   on('#changeTeamBtn', () => {
     UI.myTeamId = null; UI.gachaSelecting = false; UI.gachaMySelection = null; UI.gachaResults = null;
     render();
@@ -617,6 +625,8 @@ export function wirePlayEvents(): void {
     c.onclick = () => { UI.myTeamId = c.dataset.myteam!; render(); };
   });
   on('#newSeasonBtn', confirmNewSeason);
+  on('#newSeasonBtn2', confirmNewSeason);
+  on('#moreNewsBtn', () => { UI.tab = 'history'; UI.historyTab = 'news'; render(); });
 
   $$('[data-play]').forEach((b) => {
     b.onclick = () => {

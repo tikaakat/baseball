@@ -29,6 +29,14 @@ export interface UIState {
   seasonHistoryLoading: boolean;
   /** 直前に球団史へ記録したシーズン（共有ボタン用） */
   lastArchived: SeasonRecord | null;
+  /** 球団史の小タブ・選んでいるシーズン・歴代ランキングの種目・ニュースの絞り込み */
+  historyTab?: string;
+  historySeason?: number | null;
+  allTimeCat?: string;
+  newsFilter?: string;
+  /** 名鑑・遊び方の小タブ */
+  rosterTab?: string;
+  howtoTab?: string;
 }
 
 export const UI: UIState = {

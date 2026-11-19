@@ -6,15 +6,15 @@ import { DB, leagueName } from '../engine/state';
 import { winPct } from '../engine/stats';
 import { $$, fmt3 } from './format';
 import { openEditLeagueModal } from './modal';
+import { UI } from './state';
 
-function leagueTable(leagueCode: string, title: string, ruleNote: string, ruleFlag: 'H' | 'B'): string {
+function leagueTable(leagueCode: string, title: string, ruleFlag: 'H' | 'B'): string {
   const list = sortStandings(DB.teams.filter((t) => t.league === leagueCode), ruleFlag);
   const leader = list[0];
   const rows = list.map((t, i) => `
-      <tr>
+      <tr class="${t.id === UI.myTeamId ? 'mine' : ''} ${i === 2 ? 'cutline' : ''}">
         <td>${i + 1}</td>
         <td class="name">${t.name}</td>
-        <td>${t.wins + t.losses + t.ties}</td>
         <td>${t.wins}</td>
         <td>${t.losses}</td>
         <td>${t.ties}</td>
@@ -22,9 +22,8 @@ function leagueTable(leagueCode: string, title: string, ruleNote: string, ruleFl
         <td>${gamesBehind(leader, t)}</td>
       </tr>`).join('');
   return `<div class="card">
-      <div class="row between"><h2 style="margin:0;">${title}</h2><button class="edit-btn" data-editleague="${leagueCode}">✎</button></div>
-      <div class="muted" style="margin:6px 0;">勝率が同じ場合の順位決定：${ruleNote}</div>
-      <table><thead><tr><th>順位</th><th>チーム</th><th>試合</th><th>勝</th><th>敗</th><th>分</th><th>勝率</th><th>差</th></tr></thead>
+      <div class="row between"><h2 style="margin:0;">${title}</h2><button class="link-btn" data-editleague="${leagueCode}">✎ 名前</button></div>
+      <table class="standings"><thead><tr><th></th><th class="namehead">チーム</th><th>勝</th><th>敗</th><th>分</th><th>勝率</th><th>差</th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
 }
 
@@ -56,17 +55,14 @@ function headToHeadMatrixHTML(): string {
 }
 
 export function renderStandings(): string {
-  let html = leagueTable(LEAGUE_CODES[0], leagueName(LEAGUE_CODES[0]), 'まず①勝利数の多い方を上位に。それでも並べば②その2チーム同士の直接対決の勝率で決定', 'H')
-    + leagueTable(LEAGUE_CODES[1], leagueName(LEAGUE_CODES[1]), 'まず①その2チーム同士の直接対決の勝率で決定。それでも並べば②勝利数の多い方を上位に', 'B');
-
-  if (regularSeasonComplete(DB.schedule)) {
-    html += `<div class="card"><h2>ポストシーズン</h2><div class="muted">レギュラーシーズンが終了しました。プレーオフ・ペンシルシリーズの進行は「試合」タブから行えます。</div></div>`;
-  } else {
-    const done = DB.schedule.filter((g) => g.played).length;
-    html += `<div class="card"><h2>ポストシーズン</h2><div class="muted">レギュラーシーズン（${done} / ${DB.schedule.length} 試合）が終わると、「試合」タブからプレーオフ・ペンシルシリーズに進めます。</div></div>`;
-  }
-  html += headToHeadMatrixHTML();
-  return html;
+  const done = DB.schedule.filter((g) => g.played).length;
+  return leagueTable(LEAGUE_CODES[0], leagueName(LEAGUE_CODES[0]), 'H')
+    + leagueTable(LEAGUE_CODES[1], leagueName(LEAGUE_CODES[1]), 'B')
+    + `<div class="muted" style="font-size:11px;margin:-4px 2px 12px;line-height:1.6;">
+        上位3チーム（線より上）がプレーオフへ。${regularSeasonComplete(DB.schedule) ? 'レギュラーシーズン終了。' : `消化 ${done}/${DB.schedule.length} 試合。`}<br>
+        勝率が並んだら、${leagueName(LEAGUE_CODES[0])}は勝利数→直接対決、${leagueName(LEAGUE_CODES[1])}は直接対決→勝利数の順で決めます。
+      </div>`
+    + headToHeadMatrixHTML();
 }
 
 export function wireStandingsEvents(): void {

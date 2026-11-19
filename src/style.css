@@ -436,3 +436,91 @@ select[data-gachaselect]{
 .guide-box p{margin:0 0 12px;font-size:13px;line-height:1.6;}
 .guide-step{font-size:11px;color:var(--dim);}
 .guide-focus{position:relative;z-index:61;box-shadow:0 0 0 3px var(--pencil),0 0 24px rgba(242,182,50,.6);border-radius:10px;}
+
+/* ---------- 共通：ヘッダー・小タブ・チップ ---------- */
+.appbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 2px 8px;border-bottom:1px solid var(--line);}
+.appbar .logo{font-family:'Courier New',monospace;font-weight:900;color:var(--pencil);font-size:15px;letter-spacing:1px;white-space:nowrap;}
+.appbar .ctx{font-size:10.5px;color:var(--dim);text-align:right;line-height:1.35;min-width:0;}
+.appbar .ctx b{color:var(--cream);}
+.section{padding-top:10px;}
+.seg{display:flex;background:var(--graphite);border-radius:10px;padding:3px;gap:2px;margin-bottom:10px;}
+.seg button{flex:1;background:none;border:none;color:var(--dim);font-size:12.5px;font-weight:700;padding:7px 4px;border-radius:8px;cursor:pointer;white-space:nowrap;}
+.seg button.active{background:var(--pencil);color:#2a1e04;}
+.chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:10px;padding-bottom:2px;}
+.chips::-webkit-scrollbar{display:none;}
+.chips button{flex:0 0 auto;background:var(--panel-light);color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12px;cursor:pointer;white-space:nowrap;}
+.chips button.active{background:var(--pencil);color:#2a1e04;border-color:var(--pencil-dark);font-weight:800;}
+.card h2{font-size:14px;}
+.list-row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px;}
+.list-row:last-child{border-bottom:none;}
+.list-row .sub{font-size:11px;color:var(--dim);}
+.section-title{font-size:12px;color:var(--dim);font-weight:700;margin:12px 0 4px;}
+
+/* ---------- 試合タブ ---------- */
+.today-card{text-align:center;}
+.today-card .today-vs{font-size:22px;font-weight:900;margin:6px 0 8px;}
+.starters{display:flex;flex-direction:column;gap:2px;font-size:12px;margin-bottom:12px;}
+.starters .muted{font-size:11px;margin-right:4px;}
+.play-btn{width:min(320px,100%);font-size:16px;padding:12px;}
+.today-sub{justify-content:center;gap:4px 14px;margin-top:10px;flex-wrap:wrap;}
+.link-btn{background:none;border:none;color:var(--pencil);font-size:12.5px;font-weight:700;cursor:pointer;padding:4px 2px;text-decoration:underline;text-underline-offset:3px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.two-col .list-row{font-size:12px;padding:5px 0;}
+.share-card{padding:10px 12px;}
+.step{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);}
+.step:last-of-type{border-bottom:none;}
+.step-no{flex:0 0 26px;height:26px;border-radius:50%;background:var(--graphite);color:var(--dim);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;}
+.step.now .step-no{background:var(--pencil);color:#2a1e04;}
+.step.done .step-no{background:var(--good);color:#1a1208;}
+.step-body{flex:1;min-width:0;}
+.step-title{font-weight:800;font-size:13.5px;margin:3px 0 6px;}
+.step.todo .step-title{color:var(--dim);}
+.gacha-row.mine{border-color:var(--pencil);}
+
+/* ---------- 球団史 ---------- */
+.champ{font-size:16px;font-weight:900;color:var(--pencil);margin:8px 0 2px;}
+.champ .sub{font-size:11px;color:var(--dim);font-weight:600;}
+.list-row.mine,tr.mine td{color:var(--pencil);font-weight:800;}
+.trend-row{display:flex;flex-wrap:wrap;gap:6px;}
+.trend{display:inline-flex;flex-direction:column;align-items:center;background:var(--panel-light);border-radius:8px;padding:4px 8px;font-size:10px;color:var(--dim);min-width:46px;}
+.trend b{font-size:13px;color:var(--cream);}
+.trend.a b{color:var(--good);}
+.trend.top{border:1px solid var(--pencil);}
+.trend.top b{color:var(--pencil);}
+
+/* ---------- 名鑑 ---------- */
+.team-head .team-name{font-size:18px;font-weight:900;margin:6px 0 2px;}
+.sub{font-size:11.5px;color:var(--dim);}
+.p-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);}
+.p-row:last-child{border-bottom:none;}
+.p-slot{flex:0 0 30px;text-align:center;font-size:11px;font-weight:800;color:var(--pencil);}
+.p-main{flex:1;min-width:0;}
+.p-name{font-size:13.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.p-name .sub{font-weight:400;font-size:10.5px;}
+.p-abl{font-size:10.5px;color:var(--dim);margin-top:2px;white-space:nowrap;overflow:hidden;}
+.edit-btn.icon{padding:3px 7px;opacity:.75;}
+
+/* ---------- 遊び方・設定 ---------- */
+.intro{font-size:13px;line-height:1.7;}
+.steps-list{margin:8px 0 0;padding-left:20px;font-size:12.5px;}
+.steps-list li{margin:3px 0;}
+.settings label{display:block;font-size:12px;color:var(--dim);margin:8px 0 4px;}
+.settings label.check{display:flex;gap:6px;align-items:center;color:var(--cream);font-size:12.5px;margin:12px 0;}
+.danger-zone{display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:14px;padding-top:10px;border-top:1px solid var(--line);}
+.link-btn.danger{color:var(--bad);}
+
+/* ---------- 成績ランキング ---------- */
+.rank-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
+.rank-row:last-child{border-bottom:none;}
+.rank-no{flex:0 0 22px;text-align:center;font-weight:900;color:var(--dim);}
+.rank-row:nth-child(-n+3) .rank-no{color:var(--pencil);}
+.rank-main{flex:1;min-width:0;}
+.rank-main .sub{font-size:10.5px;}
+.rank-val{font-size:18px;font-weight:900;color:var(--pencil);}
+.rank-row.mine .rank-main > div:first-child{color:var(--pencil);font-weight:800;}
+small.given{font-size:9.5px;color:var(--pencil);margin-left:1px;font-weight:700;}
+
+table.standings td,table.standings th{padding:6px 3px;}
+table.standings tr.cutline td{border-bottom:2px solid var(--pencil-dark);}
+.two-col .list-row > span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
+.two-col .list-row .pill{flex:0 0 auto;font-size:10px;padding:1px 6px;}

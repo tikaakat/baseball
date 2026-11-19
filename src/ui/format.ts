@@ -36,8 +36,13 @@ export function escapeAttr(s: unknown): string {
 /** 同じ苗字の選手がいる場合だけ、下の名前の頭文字を小さく添えて区別する */
 export function nameBadge(player: Player, contextPlayers: Player[]): string {
   const dupe = contextPlayers.filter((x) => x.name === player.name).length > 1;
-  if (!dupe) return player.name;
-  return `<span style="position:relative;display:inline-block;padding-right:11px;">${player.name}<span style="position:absolute;right:-2px;bottom:-4px;font-size:9.5px;line-height:1;color:var(--pencil);font-weight:700;">${player.given.charAt(0)}</span></span>`;
+  return dupe ? `${player.name}<small class="given">${player.given.charAt(0)}</small>` : player.name;
+}
+
+/** 地名を除いた短いチーム名（例：仙台ルーラーズ → ルーラーズ）。ユーザーが付けた名前はそのまま */
+export function shortTeamName(name: string): string {
+  const m = name.match(/^(東京|横浜|新潟|仙台|札幌|甲府|大阪|京都|福岡|神戸|広島|名古屋)(.{2,})$/);
+  return m ? m[2] : name;
 }
 
 /** 能力の評価バッジ（野手：パワー・ミート・走力／投手：球威・制球・スタミナ） */

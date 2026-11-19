@@ -6,7 +6,11 @@ import { modalHTML, wireModalEvents } from './modal';
 import { renderPlayTab, wirePlayEvents } from './play';
 import { renderRoster, wireRosterEvents } from './roster';
 import { renderStandings, wireStandingsEvents } from './standings';
-import { $, $$ } from './format';
+import { $, $$, shortTeamName } from './format';
+import { showToast } from './components';
+import { currentDay, regularSeasonComplete } from '../engine/schedule';
+import { finalizeStandings } from '../engine/standings';
+import { DB, teamById } from '../engine/state';
 import { saveErrorMessage, scheduleSave } from './persist';
 import { UI, type TabKey } from './state';
 
@@ -17,9 +21,10 @@ function tabBtn(key: TabKey, icon: string, label: string): string {
 export function render(): void {
   const app = $('#app')!;
   app.innerHTML = `
-    <div class="hero">
-      <h1>⬡ 六角鉛筆ベースボール ⬡</h1>
-    </div>
+    <header class="appbar">
+      <div class="logo">⬡ 六角鉛筆ベースボール</div>
+      <div class="ctx">${headerContext()}</div>
+    </header>
     <nav class="tabbar">
       ${tabBtn('play', '⚾', '試合')}
       ${tabBtn('standings', '📊', '順位')}
@@ -37,7 +42,19 @@ export function render(): void {
   });
   renderSection();
   wireModalEvents();
+  if (UI.flash) { showToast(UI.flash); UI.flash = null; }
   scheduleSave();
+}
+
+/** ヘッダー右側：シーズンと日付、マイチームの成績 */
+function headerContext(): string {
+  const day = currentDay(DB.schedule);
+  const when = `第${DB.currentSeasonNum}季・${day ? `${day}日目` : regularSeasonComplete(DB.schedule) ? 'シーズン終了' : ''}`;
+  const t = UI.myTeamId ? teamById(UI.myTeamId) : undefined;
+  if (!t) return when;
+  const { H, B } = finalizeStandings();
+  const rank = [...H, ...B].filter((x) => x.league === t.league).indexOf(t) + 1;
+  return `${when}<br><b>${shortTeamName(t.name)}</b> ${t.wins}-${t.losses}${t.ties ? '-' + t.ties : ''}・${rank}位`;
 }
 
 export function renderSection(): void {

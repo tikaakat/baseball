@@ -2,6 +2,7 @@
 import { DEFAULT_LEAGUE_NAMES } from './data';
 import { resetPlayerForNewSeason, resetPlayerSeq } from './player';
 import { createSchedule } from './schedule';
+import { emptyPitchLine, emptyStatLine } from './stats';
 import { finalizeStandings } from './standings';
 import { DB } from './state';
 import { reviewRegulars } from './lineup';
@@ -61,6 +62,24 @@ export function startNewSeason(): void {
   DB.lastForcedRetirements = allRetired;
   DB.lastManagerChanges = managerChanges;
   DB.currentSeasonNum = (DB.currentSeasonNum || 1) + 1;
+  DB.schedule = createSchedule(DB.teams);
+  DB.postseason = null;
+  DB.gachaDoneThisCycle = false;
+  DB.recordNewsThisSeason = [];
+}
+
+/** 今シーズンを最初からやり直す（選手・監督はそのまま、今季の成績・日程・ポストシーズンだけ白紙に） */
+export function restartCurrentSeason(): void {
+  DB.teams.forEach((t) => {
+    t.wins = 0; t.losses = 0; t.ties = 0; t.runsFor = 0; t.runsAgainst = 0;
+    t.rotationIdx = 0;
+    if (t.manager) { t.manager.wins = 0; t.manager.losses = 0; t.manager.ties = 0; }
+    [...t.roster, ...t.pitchers].forEach((p) => {
+      p.stats = emptyStatLine(); p.psStats = emptyStatLine();
+      p.pStats = emptyPitchLine(); p.psPStats = emptyPitchLine();
+      p.recentDays = [];
+    });
+  });
   DB.schedule = createSchedule(DB.teams);
   DB.postseason = null;
   DB.gachaDoneThisCycle = false;
