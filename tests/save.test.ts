@@ -1,0 +1,78 @@
+import { describe, expect, it } from 'vitest';
+import { newGame, rollStep } from '../src/engine/game';
+import { autoCompletePostseason } from '../src/engine/postseason';
+import { restoreState, serializeState } from '../src/engine/save';
+import { hardResetLeague, startNewSeason } from '../src/engine/season';
+import { DB, teamById } from '../src/engine/state';
+import { gachaSwapAllTeams } from '../src/engine/team';
+import { simWholeSeason } from './sim-helpers';
+
+/** JSON 文字列を経由して保存→復元する（実際のストレージと同じ経路） */
+function roundTrip(ui: Parameters<typeof serializeState>[0]) {
+  const json = JSON.stringify(serializeState(ui));
+  hardResetLeague(); // 別のリーグで上書きしてから復元できることを確かめる
+  return restoreState(JSON.parse(json));
+}
+
+describe('セーブデータ', () => {
+  it('シーズン途中のリーグを保存・復元でき、打順は同じ選手オブジェクトを指す', () => {
+    hardResetLeague();
+    DB.schedule.slice(0, 300).forEach((g) => {
+      const game = newGame(teamById(g.home)!, teamById(g.away)!, g.id);
+      while (!game.finished) rollStep(game);
+    });
+    const before = JSON.stringify(serializeState({ myTeamId: 't3', liveGame: null }).db);
+
+    const ui = roundTrip({ myTeamId: 't3', liveGame: null });
+
+    expect(ui.myTeamId).toBe('t3');
+    expect(JSON.stringify(serializeState(ui).db)).toBe(before);
+    DB.teams.forEach((t) => t.battingOrder.forEach((p) => expect(t.roster).toContain(p)));
+
+    // 復元後もそのまま最後まで遊べる
+    simWholeSeason();
+    DB.teams.forEach((t) => expect(t.wins + t.losses + t.ties).toBe(144));
+  });
+
+  it('観戦中の試合（塁上の走者を含む）を途中から再開できる', () => {
+    hardResetLeague();
+    const g = DB.schedule[0];
+    const game = newGame(teamById(g.home)!, teamById(g.away)!, g.id);
+    for (let i = 0; i < 40 && !(game.bases.first || game.bases.second); i++) rollStep(game);
+
+    const ui = roundTrip({ myTeamId: g.home, liveGame: game });
+    const live = ui.liveGame!;
+
+    expect(live.home).toBe(teamById(g.home));
+    expect(live.score).toEqual(game.score);
+    (['first', 'second', 'third'] as const).forEach((b) => {
+      const runner = live.bases[b];
+      if (runner) expect(live[game.half === 'top' ? 'away' : 'home'].roster).toContain(runner);
+    });
+    while (!live.finished) rollStep(live);
+    expect(DB.schedule[0].played).toBe(true);
+  });
+
+  it('ポストシーズン後・数年後のデータも復元できる', () => {
+    hardResetLeague();
+    for (let y = 0; y < 3; y++) {
+      simWholeSeason();
+      autoCompletePostseason();
+      gachaSwapAllTeams(null, null);
+      if (y < 2) startNewSeason();
+    }
+    const champId = DB.postseason!.champion!.id;
+    roundTrip({ myTeamId: null, liveGame: null });
+    expect(DB.currentSeasonNum).toBe(3);
+    expect(DB.postseason!.champion).toBe(teamById(champId));
+    expect(DB.postseason!.series.JS!.teamA).toBe(teamById(DB.postseason!.series.JS!.teamA.id));
+    expect(DB.teams.some((t) => (t.alumni || []).length > 0)).toBe(true);
+  });
+
+  it('形式の違うデータは拒否し、リーグを壊さない', () => {
+    hardResetLeague();
+    const teamsBefore = DB.teams;
+    expect(() => restoreState({ version: 999 } as never)).toThrow();
+    expect(DB.teams).toBe(teamsBefore);
+  });
+});

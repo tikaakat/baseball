@@ -1,5 +1,6 @@
 /* 「球団史」タブ */
-import { loadSeasonHistory, STORAGE_AVAILABLE } from '../engine/history';
+import { loadSeasonHistory } from '../engine/history';
+import { STORAGE_AVAILABLE } from '../engine/storage';
 import { DB, leagueName, teamById } from '../engine/state';
 import { avgOfStats, opsOfStats } from '../engine/stats';
 import type { Awards, SeasonRecord, StandingRecord, StatLine } from '../engine/types';

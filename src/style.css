@@ -85,7 +85,7 @@ body{
 .btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--pencil-dark);}
 .btn.secondary{background:var(--panel-light);color:var(--cream);box-shadow:0 3px 0 var(--line);}
 .btn.small{padding:6px 10px;font-size:12px;border-radius:8px;}
-.btn:disabled{opacity:.4;cursor:default;box-shadow:none;transform:none;}
+.btn:disabled,.btn[aria-disabled="true"]{opacity:.4;cursor:default;box-shadow:none;transform:none;}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
 .row.between{justify-content:space-between;}
 

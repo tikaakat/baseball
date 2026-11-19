@@ -137,6 +137,13 @@ export interface Play extends ContactResult {
   rawResult: Outcome;
 }
 
+export interface LastPlay {
+  p1: P1Face;
+  p2: P2Face | null;
+  abilityKey: AbilityKey | null;
+  abilityNote: string | null;
+}
+
 export type SeriesKey = 'H1' | 'B1' | 'H2' | 'B2' | 'JS';
 
 export interface Game {
@@ -154,7 +161,8 @@ export interface Game {
   winner: Winner | null;
   pencilStage: 'ready' | 'awaitingPencil2';
   pendingP1: P1Face | null;
-  lastPlay: (Play & { runsThisPlay: Player[] }) | null;
+  /** 直前の打席（画面の演出用。保存できるよう選手オブジェクトは持たない） */
+  lastPlay: LastPlay | null;
   battedThisGame: Set<string>;
   inningRuns: Record<Side, number[]>;
   hits: Record<Side, number>;

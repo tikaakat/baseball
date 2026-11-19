@@ -1,4 +1,14 @@
 /* 「遊び方」タブ */
+import { clearSeasonHistory } from '../engine/history';
+import { clearSave } from '../engine/save';
+import { hardResetLeague } from '../engine/season';
+import { STORAGE_AVAILABLE } from '../engine/storage';
+import { render } from './app';
+import { $ } from './format';
+import { openConfirmModal } from './modal';
+import { clearHoldTimers } from './play';
+import { UI, resetTransientUi } from './state';
+
 export function renderHowTo(): string {
   return `
   <div class="card">
@@ -13,5 +23,30 @@ export function renderHowTo(): string {
       各打者には <b>パワー・ミート・走力</b>（★1〜5）に加え、一部の選手だけが持つ<b>特殊能力</b>（一番打者向き／勝負強い／一発長打／堅実／逆転の一振り／ラッキーセブン／満塁男）があります。能力が結果を覆すと画面に演出が出ます。守備位置と打順・能力の傾向は連動して自動的に組まれます（1〜2番は一番打者向き・堅実、3〜5番は勝負強い・一発長打・満塁男が出やすいなど）。<br>
       144試合のレギュラーシーズン終了後、上位3チームでクライマックスシリーズ→日本シリーズに進出します（4位以下は来年に期待）。同率首位の順位決定はイーストリーグとウエストリーグで規則が異なります（詳しくは「順位表」タブに記載）。シーズン終了後に「シーズンを新しくする」と、そのシーズンの成績が「球団史」タブに記録されます（ポストシーズン未完了の場合は自動で最後まで消化されます）。
     </div>
+  </div>
+  <div class="card">
+    <h2>セーブデータ</h2>
+    <div class="muted" style="margin-bottom:8px;">${STORAGE_AVAILABLE
+      ? '試合の進み具合・選手・球団史は、この端末のブラウザに自動で保存されます。途中で閉じても、次に開けば続きから遊べます。'
+      : 'このブラウザでは保存が使えないため、タブを閉じると最初からになります（プライベートブラウズでは保存できないことがあります）。'}</div>
+    <button class="btn secondary small" id="resetAllBtn">すべて消して最初から始める</button>
   </div>`;
+}
+
+export function wireHowToEvents(): void {
+  const btn = $('#resetAllBtn');
+  if (!btn) return;
+  btn.onclick = () => {
+    openConfirmModal('進行中のシーズン・選手・球団史をすべて消して、新しいリーグを作り直します。元に戻すことはできません。よろしいですか？', () => {
+      void Promise.all([clearSave(), clearSeasonHistory()]).then(() => {
+        clearHoldTimers();
+        hardResetLeague();
+        resetTransientUi();
+        UI.myTeamId = null;
+        UI.seasonHistory = null;
+        UI.tab = 'play';
+        render();
+      });
+    });
+  };
 }

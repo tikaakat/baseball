@@ -82,7 +82,7 @@ export function applyPlay(game: Game, play: Play): void {
   if (play.abilityNote) text += ` （${play.abilityNote}）`;
   if (runsThisPlay.length) text += ` ${runsThisPlay.length}点入る！`;
   pushLog(game, text);
-  game.lastPlay = { ...play, runsThisPlay };
+  game.lastPlay = { p1: play.p1, p2: play.p2, abilityKey: play.abilityKey, abilityNote: play.abilityNote };
 
   game.orderIdx[battingKey] = (game.orderIdx[battingKey] + 1) % 9;
 

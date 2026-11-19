@@ -296,7 +296,7 @@ function playScreenHTML(game: Game): string {
     <div class="play-note" id="playNote">${noteText}</div>
     ${abilityFlashHtml}
     <div class="roll-btn-wrap">
-      <button class="btn roll-btn" id="rollBtn" ${UI.rolling ? 'disabled' : ''}>${btnLabel}</button>
+      <button class="btn roll-btn" id="rollBtn" aria-disabled="${UI.rolling}">${btnLabel}</button>
       <div class="hold-hint">長押しで早送り</div>
     </div>
     ` : finishHtml}
@@ -323,11 +323,30 @@ export function clearHoldTimers(): void {
   if (holdStartTimer) { clearTimeout(holdStartTimer); holdStartTimer = null; }
   if (holdRepeatTimer) { clearInterval(holdRepeatTimer); holdRepeatTimer = null; }
 }
+/**
+ * 指・マウスを離したことはページ全体で検知する。
+ * （転がしている間はボタンが無効化されるため、ボタン自身には mouseup が届かない。
+ *   元の版ではこれにより、1回クリックしただけで早送りが始まっていた）
+ */
+function listenForRelease(): void {
+  const release = () => {
+    releaseRoll();
+    window.removeEventListener('mouseup', release);
+    window.removeEventListener('touchend', release);
+    window.removeEventListener('touchcancel', release);
+    window.removeEventListener('blur', release);
+  };
+  window.addEventListener('mouseup', release);
+  window.addEventListener('touchend', release);
+  window.addEventListener('touchcancel', release);
+  window.addEventListener('blur', release);
+}
 function pressRoll(): void {
   if (UI.rolling || !UI.liveGame || UI.liveGame.finished) return;
   const gameRef = UI.liveGame;
   doRoll(); // 1回分はアニメーション付きで転がす
   clearHoldTimers();
+  listenForRelease();
   holdStartTimer = setTimeout(() => {
     holdRepeatTimer = setInterval(() => {
       if (UI.tab !== 'play' || UI.liveGame !== gameRef || gameRef.finished) { clearHoldTimers(); return; }
@@ -345,8 +364,8 @@ function doRoll(): void {
   if (UI.rolling || !game || game.finished) return;
   const wasAwaiting = game.pencilStage === 'awaitingPencil2';
   UI.rolling = true;
-  const rollBtn = $<HTMLButtonElement>('#rollBtn');
-  if (rollBtn) rollBtn.disabled = true;
+  const rollBtn = $('#rollBtn');
+  rollBtn?.setAttribute('aria-disabled', 'true'); // disabled にすると mouseup が届かず長押し判定が解けないため、見た目だけ無効にする
 
   const res = rollStep(game); // エンジンは同期的に結果を確定する
 
@@ -522,11 +541,8 @@ export function wirePlayEvents(): void {
   const rollBtn = $('#rollBtn');
   if (rollBtn) {
     rollBtn.onmousedown = () => pressRoll();
-    rollBtn.onmouseup = () => releaseRoll();
     rollBtn.onmouseleave = () => releaseRoll();
     rollBtn.ontouchstart = (e) => { e.preventDefault(); pressRoll(); };
-    rollBtn.ontouchend = () => releaseRoll();
-    rollBtn.ontouchcancel = () => releaseRoll();
   }
 
   on('#backToScheduleBtn', () => {

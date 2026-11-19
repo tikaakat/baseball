@@ -1,12 +1,13 @@
 /* 画面全体の描画とタブ切り替え */
 import { renderHistory } from './history';
-import { renderHowTo } from './howto';
+import { renderHowTo, wireHowToEvents } from './howto';
 import { renderLeaders, wireLeaderEvents } from './leaders';
 import { modalHTML, wireModalEvents } from './modal';
 import { renderPlayTab, wirePlayEvents } from './play';
 import { renderRoster, wireRosterEvents } from './roster';
 import { renderStandings, wireStandingsEvents } from './standings';
 import { $, $$ } from './format';
+import { saveErrorMessage, scheduleSave } from './persist';
 import { UI, type TabKey } from './state';
 
 function tabBtn(key: TabKey, label: string): string {
@@ -28,6 +29,7 @@ export function render(): void {
       ${tabBtn('history', '🏛 球団史')}
       ${tabBtn('howto', '📖 遊び方')}
     </div>
+    ${saveErrorMessage() ? `<div class="flash">⚠ ${saveErrorMessage()}。この端末の空き容量やブラウザの設定を確認してください。</div>` : ''}
     <div class="section" id="section"></div>
     <div id="modalRoot">${modalHTML()}</div>
   `;
@@ -36,6 +38,7 @@ export function render(): void {
   });
   renderSection();
   wireModalEvents();
+  scheduleSave();
 }
 
 export function renderSection(): void {
@@ -62,6 +65,7 @@ export function renderSection(): void {
       break;
     case 'howto':
       sec.innerHTML = renderHowTo();
+      wireHowToEvents();
       break;
   }
 }

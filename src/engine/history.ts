@@ -2,45 +2,27 @@
 import { computeBestNine, computeGoldenGlove, computePostseasonMVP, computeRookieOfYear, computeSeasonLeaders, computeSeasonMVP } from './awards';
 import { finalizeStandings } from './standings';
 import { DB, leagueName } from './state';
+import { kvGet, kvRemove, kvSet } from './storage';
 import type { SeasonRecord, Team } from './types';
 import { sleep } from './util';
 
-/** Claude アーティファクト環境が提供する保存API（他の環境では存在しない） */
-interface ArtifactStorage {
-  get(key: string, shared: boolean): Promise<{ value?: string } | null>;
-  set(key: string, value: string, shared: boolean): Promise<unknown>;
-}
-declare global {
-  interface Window { storage?: ArtifactStorage }
-}
-
-let inMemorySeasonHistory: SeasonRecord[] | null = null; // window.storage が使えない環境向けのフォールバック
-export const STORAGE_AVAILABLE = typeof window !== 'undefined' && !!window.storage;
+const HISTORY_KEY = 'season-history';
 
 export async function loadSeasonHistory(): Promise<SeasonRecord[]> {
-  if (!STORAGE_AVAILABLE) {
-    if (inMemorySeasonHistory === null) inMemorySeasonHistory = [];
-    return inMemorySeasonHistory;
-  }
   try {
-    const res = await window.storage!.get('season-history', false);
-    if (res && res.value) return JSON.parse(res.value) as SeasonRecord[];
-  } catch { /* まだ保存されていない */ }
+    const raw = await kvGet(HISTORY_KEY);
+    if (raw) return JSON.parse(raw) as SeasonRecord[];
+  } catch { /* 壊れている・未保存 */ }
   return [];
 }
 
 async function saveSeasonHistory(history: SeasonRecord[]): Promise<boolean> {
-  if (!STORAGE_AVAILABLE) {
-    inMemorySeasonHistory = history;
-    return true;
-  }
   const payload = JSON.stringify(history);
   let lastErr: string | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const result = await window.storage!.set('season-history', payload, false);
-      if (result) return true;
-      lastErr = 'window.storage.set returned no result';
+      if (await kvSet(HISTORY_KEY, payload)) return true;
+      lastErr = 'storage.set returned no result';
     } catch (e) {
       lastErr = e instanceof Error ? e.message : String(e);
     }
@@ -48,6 +30,10 @@ async function saveSeasonHistory(history: SeasonRecord[]): Promise<boolean> {
   }
   DB.lastStorageError = lastErr + '（3回試行）';
   return false;
+}
+
+export async function clearSeasonHistory(): Promise<void> {
+  await kvRemove(HISTORY_KEY);
 }
 
 export class ArchiveError extends Error {

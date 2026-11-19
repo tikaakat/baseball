@@ -7,6 +7,8 @@ import { choice, frac, randInt } from './util';
 
 let playerSeq = 1;
 export function resetPlayerSeq(): void { playerSeq = 1; }
+export function getPlayerSeq(): number { return playerSeq; }
+export function setPlayerSeq(n: number): void { playerSeq = n; }
 
 export interface PlayerIdentity { surname: string; given: string; initial: string }
 
