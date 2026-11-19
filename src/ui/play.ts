@@ -1,7 +1,8 @@
 /* 「試合」タブ：マイチーム選択・日程・試合画面・ポストシーズン・オフシーズンガチャ */
 import { currentBattingKey, emptyBases, pencilsFor, pencilSummary } from '../engine/atbat';
 import { ABILITY_INFO, FACE_LABEL, P1_FACES, P2_FACES, POSTSEASON_NAMES, SERIES_KEYS } from '../engine/data';
-import { autoSimGame, currentBatter, fieldersOf, newGame, rollStep } from '../engine/game';
+import { autoSimGame, changePitcher, currentBatter, fieldersOf, newGame, rollStep } from '../engine/game';
+import { availableBench, decisionCard, executeBunt, executeIntentionalWalk, forceSteal, markCardShown, pencilHeadline, pinchHit, pitcherNow } from '../engine/tactics';
 import { currentPitcher, fatigueOf, findPlayer } from '../engine/pitching';
 import { ArchiveError, archiveCurrentSeason } from '../engine/history';
 import { autoCompletePostseason, progressPostseason, startPostseason } from '../engine/postseason';
@@ -122,6 +123,7 @@ function scheduleHTML(): string {
         <button class="btn secondary" data-sim="${today.id}">自動で結果だけ</button>
       </div>
       <div class="muted" style="text-align:center;margin-top:6px;font-size:11px;">試合が終わると、同じ日の他球団の試合も自動で進みます</div>
+      <label class="check-inline"><input type="checkbox" id="cardsChk" ${DB.options?.decisionCards === false ? '' : 'checked'}> 終盤の接戦で「勝負所カード」を出す（代打・継投などを自分で決める）</label>
     </div>` : '<div class="muted">レギュラーシーズンの全試合が終わりました。お疲れさまでした。</div>';
 
   const upcoming = unplayed.slice(1, 6).map((g) => `<div class="game-row"><div class="vs">第${g.day}日　${vsLabel(g)}</div></div>`).join('');
@@ -346,6 +348,7 @@ function playScreenHTML(game: Game): string {
         ${pitcherLineHTML(game)}
       </div>` : ''}
     </div>
+    ${decisionCardHTML(game)}
     ${batter ? pencilBarsHTML(batter, game) : ''}
     <div class="dice-area">
       <div><div class="hex" id="hex1">${p1Text}</div><div class="hex-label">1本目</div></div>
@@ -397,8 +400,17 @@ function listenForRelease(): void {
   window.addEventListener('touchcancel', release);
   window.addEventListener('blur', release);
 }
+/** 観戦する試合で、マイチームの側をプレイヤーの采配にする（設定でカードを切っていれば AI 任せ） */
+function withManualSide(game: Game): Game {
+  if (DB.options?.decisionCards === false) return game;
+  game.manualSide = game.home.id === UI.myTeamId ? 'home' : game.away.id === UI.myTeamId ? 'away' : null;
+  return game;
+}
+
 /** 観戦中の試合を1本進める。マイチームの試合が終わったら、その日の他球団の試合も消化する */
 function rollLiveStep(game: Game): ReturnType<typeof rollStep> {
+  const card = decisionCard(game);
+  if (card) markCardShown(game, card);
   const res = rollStep(game);
   if (game.finished && game.scheduleId) {
     const g = DB.schedule.find((x) => x.id === game.scheduleId);
@@ -417,6 +429,7 @@ function pressRoll(): void {
     holdRepeatTimer = setInterval(() => {
       if (UI.tab !== 'play' || UI.liveGame !== gameRef || gameRef.finished) { clearHoldTimers(); return; }
       // 早送り中はアニメーションを省略し、1打席ずつ素早く処理して都度再描画する
+      if (decisionCard(gameRef)) { clearHoldTimers(); render(); return; }
       rollLiveStep(gameRef);
       render();
     }, HOLD_REPEAT_MS);
@@ -516,6 +529,9 @@ function confirmNewSeason(): void {
 }
 
 export function wirePlayEvents(): void {
+  wireDecisionCard();
+  const cardEl = $('.decision-card');
+  if (cardEl && !cardEl.dataset.seen) cardEl.scrollIntoView({ block: 'center', behavior: 'smooth' });
   updateDiamondClasses(UI.liveGame || { bases: emptyBases() });
 
   on('#startPostseasonBtn', () => { startPostseason(); render(); });
@@ -523,7 +539,7 @@ export function wirePlayEvents(): void {
     b.onclick = () => {
       const key = b.dataset.psplay as SeriesKey;
       const s = DB.postseason!.series[key]!;
-      UI.liveGame = newGame(s.teamA, s.teamB, null, key);
+      UI.liveGame = withManualSide(newGame(s.teamA, s.teamB, null, key));
       render();
     };
   });
@@ -572,6 +588,8 @@ export function wirePlayEvents(): void {
   });
   on('#closeGachaBtn', () => { UI.gachaResults = null; render(); });
 
+  const cardsChk = $<HTMLInputElement>('#cardsChk');
+  if (cardsChk) cardsChk.onchange = () => { DB.options = { ...(DB.options ?? {}), decisionCards: cardsChk.checked }; };
   on('#editLineupBtn', () => { UI.tab = 'roster'; UI.rosterTeamId = UI.myTeamId; render(); });
   on('#changeTeamBtn', () => {
     UI.myTeamId = null; UI.gachaSelecting = false; UI.gachaMySelection = null; UI.gachaResults = null;
@@ -587,7 +605,7 @@ export function wirePlayEvents(): void {
       const g = DB.schedule.find((s) => s.id === b.dataset.play)!;
       completeDaysThrough(g.day - 1); // 前日までの試合が残っていれば先に消化
       UI.flash = null;
-      UI.liveGame = newGame(teamById(g.home)!, teamById(g.away)!, g.id);
+      UI.liveGame = withManualSide(newGame(teamById(g.home)!, teamById(g.away)!, g.id));
       render();
     };
   });
@@ -616,5 +634,86 @@ export function wirePlayEvents(): void {
     UI.liveGame = null;
     if (wasPostseason) UI.tab = 'standings';
     render();
+  });
+}
+
+/* ---------- 勝負所カード ---------- */
+const pct = (v: number) => `${Math.round(v * 100)}%`;
+
+/** 投手を仮に替えたときの、いまの打者の鉛筆（比較表示用） */
+function headlineWithPitcher(game: Game, pitcherId: string): { hit: number; hr: number; onBase: number } {
+  const side = game.half === 'top' ? 'home' : 'away';
+  const prev = game.pitcher[side];
+  game.pitcher[side] = pitcherId;
+  const h = pencilHeadline(game, currentBatter(game));
+  game.pitcher[side] = prev;
+  return h;
+}
+
+function decisionCardHTML(game: Game): string {
+  const card = decisionCard(game);
+  if (!card) return '';
+  const batter = currentBatter(game);
+  const cur = pencilHeadline(game, batter);
+  const line = (h: { hit: number; hr: number; onBase: number }) => `ヒット${pct(h.hit)}・HR${pct(h.hr)}・出塁${pct(h.onBase)}`;
+  const my = game.manualSide!;
+  const diff = game.score[my] - game.score[my === 'home' ? 'away' : 'home'];
+  const situation = `${game.inning}回${game.half === 'top' ? '表' : '裏'}　${diff > 0 ? `${diff}点リード` : diff < 0 ? `${-diff}点ビハインド` : '同点'}　${game.outs}アウト`;
+  let body = '';
+  if (card.kind === 'offense') {
+    body += `<div class="card-now">打席：<b>${batter.name}</b>　${line(cur)}</div>`;
+    body += card.pinchHitters.map((p) => `<button class="btn small" data-card="pinch:${p.id}">代打 ${p.name}<small>${line(pencilHeadline(game, p))}</small></button>`).join('');
+    if (card.steal !== null) body += `<button class="btn small" data-card="steal">盗塁を仕掛ける<small>${game.bases.first!.name}・成功率 ${pct(card.steal)}</small></button>`;
+    if (card.bunt) body += `<button class="btn small" data-card="bunt">送りバント<small>成功 ${pct(card.bunt.success)}・失敗 ${pct(card.bunt.fail + card.bunt.pop)}</small></button>`;
+  } else {
+    const p = pitcherNow(game);
+    const side = game.half === 'top' ? 'home' : 'away';
+    const tired = fatigueOf(game, side);
+    body += `<div class="card-now">投手：<b>${p?.name ?? '-'}</b>${tired >= 0.25 ? '<span class="tired">（疲れ気味）</span>' : ''}　打者 ${batter.name}：${line(cur)}</div>`;
+    body += card.relievers.map((r) => `<button class="btn small" data-card="relief:${r.id}">${r.id === game[side].staff.closer ? '抑え ' : r.id === game[side].staff.setup ? 'セットアッパー ' : ''}${r.name} に交代<small>${abilityShort(r)}・${line(headlineWithPitcher(game, r.id))}</small></button>`).join('');
+    if (card.walk) body += `<button class="btn small" data-card="walk">敬遠する<small>次は ${nextBatterName(game)}</small></button>`;
+  }
+  return `<div class="decision-card">
+    <div class="decision-title">⚡ 勝負所！ <span class="muted">${situation}</span></div>
+    ${body}
+    <button class="btn secondary small" data-card="pass">そのまま鉛筆を転がす</button>
+  </div>`;
+}
+
+function nextBatterName(game: Game): string {
+  const side = game.half === 'top' ? 'away' : 'home';
+  const id = game.lineup[side][(game.orderIdx[side] + 1) % game.lineup[side].length];
+  return findPlayer(game[side], id)?.name ?? '-';
+}
+
+function wireDecisionCard(): void {
+  const game = UI.liveGame;
+  if (!game) return;
+  $$('[data-card]').forEach((b) => {
+    b.onclick = () => {
+      const card = decisionCard(game);
+      if (!card) return;
+      markCardShown(game, card);
+      const [action, id] = b.dataset.card!.split(':');
+      const side = game.half === 'top' ? 'home' : 'away';
+      if (action === 'pinch') {
+        const sub = availableBench(game, game.manualSide!).find((p) => p.id === id);
+        if (sub) pinchHit(game, sub);
+      } else if (action === 'steal') {
+        forceSteal(game);
+      } else if (action === 'bunt') {
+        executeBunt(game);
+      } else if (action === 'relief') {
+        const r = game[side].pitchers.find((p) => p.id === id);
+        if (r) changePitcher(game, r);
+      } else if (action === 'walk') {
+        executeIntentionalWalk(game);
+      }
+      if (game.finished && game.scheduleId) {
+        const g = DB.schedule.find((x) => x.id === game.scheduleId);
+        if (g) completeDaysThrough(g.day);
+      }
+      render();
+    };
   });
 }

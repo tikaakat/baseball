@@ -170,6 +170,8 @@ export interface ContactResult {
 export interface Play extends ContactResult {
   /** 失策が記録された野手（失策でなければ null） */
   errorFielder: Player | null;
+  /** 送りバント成功（打数に数えない） */
+  isSacBunt?: boolean;
   p1: P1Face;
   p2: P2Face | null;
   usedPencil2: boolean;
@@ -230,6 +232,12 @@ export interface Game {
   errors: Record<Side, number>;
   /** 選手ID → この試合の打撃成績 */
   box: Record<string, BoxLine>;
+  /** 交代でベンチに下がった選手（再出場できない） */
+  removed: string[];
+  /** プレイヤーが采配する側（観戦中のマイチーム）。AIはこの側の攻撃の作戦を立てない */
+  manualSide: Side | null;
+  /** 勝負所カードの表示状況 */
+  cards: { shown: number; lastKey: string | null };
   seriesKey?: SeriesKey;
 }
 
@@ -285,6 +293,8 @@ export interface DBState {
   lastForcedRetirements?: { team: Team; out: Player; in: Player }[];
   lastManagerChanges?: ManagerChange[];
   lastStorageError?: string;
+  /** 遊び方の設定 */
+  options?: { decisionCards?: boolean };
 }
 
 /* ---- 球団史（保存される記録） ---- */

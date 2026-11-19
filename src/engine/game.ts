@@ -3,6 +3,7 @@ import { currentBattingKey, emptyBases, finalizeAtBat, pencilsFor, resolveAtBat,
 import { TUNING } from './data';
 import { aiPitchingChoice, assignDecisions, currentPitcher, dayKeyFor, enterPitcher, fieldingSide, findPlayer, pickStarter, trackLeadChange } from './pitching';
 import { gameLineup } from './lineup';
+import { aiTactics } from './tactics';
 import { managerEffects } from './team';
 import { DB } from './state';
 import type { BoxLine, Game, P1Face, P2Face, PitchBoxLine, Play, Player, SeriesKey, Side, Team } from './types';
@@ -21,6 +22,9 @@ export function newGame(homeTeam: Team, awayTeam: Team, scheduleId: string | nul
     battedThisGame: new Set(),
     inningRuns: { home: [], away: [] }, hits: { home: 0, away: 0 }, errors: { home: 0, away: 0 },
     box: {},
+    removed: [],
+    manualSide: null,
+    cards: { shown: 0, lastKey: null },
     seriesKey,
   };
   (['away', 'home'] as const).forEach((side) => enterPitcher(game, side, pickStarter(game[side]), true));
@@ -43,11 +47,15 @@ function pboxOfCurrent(game: Game): { p: Player; line: PitchBoxLine; season: Pla
   return { p, line: game.pbox[p.id], season: game.seriesKey ? p.psPStats : p.pStats };
 }
 
-/** 打席の前に、守備側（AI）の継投を判断する */
-export function beforePlateAppearance(game: Game): void {
-  if (game.finished) return;
+/**
+ * 打席の前に、AIの采配（継投・代打・バント・敬遠）を行う。
+ * バントや敬遠でその打席が終わったら、その Play を返す
+ */
+export function beforePlateAppearance(game: Game): Play | null {
+  if (game.finished) return null;
   const next = aiPitchingChoice(game);
   if (next) changePitcher(game, next);
+  return aiTactics(game);
 }
 
 export function changePitcher(game: Game, next: Player): void {
@@ -57,7 +65,7 @@ export function changePitcher(game: Game, next: Player): void {
   pushLog(game, `${game[side].name}、投手交代：${prev ? prev.name + ' → ' : ''}${next.name}`);
 }
 
-function pushLog(game: Game, text: string): void {
+export function pushLog(game: Game, text: string): void {
   game.log.push(`${game.inning}回${game.half === 'top' ? '表' : '裏'} ${text}`);
   if (game.log.length > 200) game.log.shift();
 }
@@ -88,7 +96,7 @@ export function applyPlay(game: Game, play: Play): void {
   while (arr.length < game.inning) arr.push(0);
 
   target.pa++;
-  if (!sacFlyCounts && play.rawResult !== 'walk') target.ab++; // 失策での出塁も打数に含める
+  if (!sacFlyCounts && !play.isSacBunt && play.rawResult !== 'walk') target.ab++; // 失策での出塁も打数に含める。犠打は打数に含めない
   if (play.rawResult === 'walk') target.bb++;
   if (play.rawResult === 'hit' || play.rawResult === 'double' || play.rawResult === 'triple' || play.rawResult === 'hr') {
     target.h++;
@@ -123,7 +131,7 @@ export function applyPlay(game: Game, play: Play): void {
   // ボックススコア
   const box = boxOf(game, b);
   box.pa++;
-  if (!sacFlyCounts && play.rawResult !== 'walk') box.ab++;
+  if (!sacFlyCounts && !play.isSacBunt && play.rawResult !== 'walk') box.ab++;
   if (play.rawResult === 'walk') box.bb++;
   if (play.rawResult === 'k') box.k++;
   if (play.rawResult === 'hit' || play.rawResult === 'double' || play.rawResult === 'triple' || play.rawResult === 'hr') box.h++;
@@ -168,18 +176,19 @@ function checkHalfInningEnd(game: Game): void {
   }
 }
 
-/** 盗塁：1塁に足の速い走者がいると、打席の前に盗塁を試みることがある（2塁が空いている場合のみ） */
-function attemptSteal(game: Game): { success: boolean; runner: Player } | null {
-  if (game.finished) return null;
-  const runner = game.bases.first;
-  if (!runner || game.bases.second) return null;
+/** 盗塁の成功率 */
+export function stealSuccessChance(game: Game, runner: Player): number {
   const T = TUNING.steal;
-  const stealMult = managerEffects(game[currentBattingKey(game)].manager).stealBoost || 1;
-  const isStealer = runner.ability === 'stealer'; // 俊足盗塁王：仕掛けやすく、成功率も高い
-  const attemptChance = Math.max(0, frac(runner.speed) - T.attemptMinSpeed) * T.attempt * stealMult * (isStealer ? T.stealer.attemptMult : 1);
-  if (Math.random() >= attemptChance) return null;
-  const successChance = Math.min(0.95, T.success.base + frac(runner.speed) * T.success.speed + (isStealer ? T.stealer.successBonus : 0));
-  const success = Math.random() < successChance;
+  const isStealer = runner.ability === 'stealer'; // 俊足盗塁王：成功率も高い
+  void game;
+  return Math.min(0.95, T.success.base + frac(runner.speed) * T.success.speed + (isStealer ? T.stealer.successBonus : 0));
+}
+
+/** 盗塁を実行する（一塁走者が二塁へ） */
+export function executeSteal(game: Game): { success: boolean; runner: Player } | null {
+  const runner = game.bases.first;
+  if (game.finished || !runner || game.bases.second) return null;
+  const success = Math.random() < stealSuccessChance(game, runner);
   const target = statsTarget(game, runner);
   if (success) {
     target.sb = (target.sb || 0) + 1;
@@ -197,6 +206,20 @@ function attemptSteal(game: Game): { success: boolean; runner: Player } | null {
     checkHalfInningEnd(game);
   }
   return { success, runner };
+}
+
+/** 盗塁：1塁に足の速い走者がいると、打席の前に盗塁を試みることがある（2塁が空いている場合のみ。手動操作の側は自分で決める） */
+function attemptSteal(game: Game): { success: boolean; runner: Player } | null {
+  if (game.finished) return null;
+  const runner = game.bases.first;
+  if (!runner || game.bases.second) return null;
+  if (game.manualSide === currentBattingKey(game)) return null;
+  const T = TUNING.steal;
+  const stealMult = managerEffects(game[currentBattingKey(game)].manager).stealBoost || 1;
+  const isStealer = runner.ability === 'stealer';
+  const attemptChance = Math.max(0, frac(runner.speed) - T.attemptMinSpeed) * T.attempt * stealMult * (isStealer ? T.stealer.attemptMult : 1);
+  if (Math.random() >= attemptChance) return null;
+  return executeSteal(game);
 }
 
 function finishGame(game: Game, forcedTie = false): void {
@@ -248,7 +271,8 @@ export type RollStepResult =
 export function rollStep(game: Game): RollStepResult | null {
   if (game.finished) return null;
   if (game.pencilStage === 'ready') {
-    beforePlateAppearance(game);
+    const tactic = beforePlateAppearance(game);
+    if (tactic) return { stage: 'resolved', play: tactic };
     attemptSteal(game); // 打席の前に、1塁走者が盗塁を試みることがある
     if (game.finished) return { stage: 'resolved', play: null, stealOnly: true };
   }
@@ -276,7 +300,7 @@ export function rollStep(game: Game): RollStepResult | null {
 export function autoSimGame(game: Game): Game {
   let it = 0;
   while (!game.finished && it < 5000) {
-    beforePlateAppearance(game);
+    if (beforePlateAppearance(game)) { it++; continue; }
     attemptSteal(game);
     if (game.finished) break;
     const play = resolveAtBat(currentBatter(game), game.bases, game);

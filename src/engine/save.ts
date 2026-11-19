@@ -38,6 +38,7 @@ export interface SaveData {
     gachaDoneThisCycle: boolean;
     currentSeasonNum: number;
     lastManagerChanges?: DBState['lastManagerChanges'];
+    options?: DBState['options'];
   };
   /** 画面側の状態（マイチーム・観戦中の試合など） */
   ui: { myTeamId: string | null; liveGame: SavedGame | null };
@@ -88,6 +89,7 @@ export function serializeState(ui: { myTeamId: string | null; liveGame: Game | n
       gachaDoneThisCycle: DB.gachaDoneThisCycle,
       currentSeasonNum: DB.currentSeasonNum,
       lastManagerChanges: DB.lastManagerChanges,
+      options: DB.options,
     },
     ui: { myTeamId: ui.myTeamId, liveGame: saveGame(ui.liveGame) },
   };
@@ -150,6 +152,9 @@ export function restoreState(data: SaveData): { myTeamId: string | null; liveGam
       bases: { first: player(sg.bases.first), second: player(sg.bases.second), third: player(sg.bases.third) },
       battedThisGame: new Set(sg.battedThisGame),
       box: sg.box ?? {}, // 古い保存データには無い
+      removed: sg.removed ?? [],
+      manualSide: sg.manualSide ?? null,
+      cards: sg.cards ?? { shown: 0, lastKey: null },
     };
   }
 
@@ -164,6 +169,7 @@ export function restoreState(data: SaveData): { myTeamId: string | null; liveGam
   DB.gachaDoneThisCycle = data.db.gachaDoneThisCycle;
   DB.currentSeasonNum = data.db.currentSeasonNum;
   DB.lastManagerChanges = data.db.lastManagerChanges;
+  DB.options = data.db.options ?? {};
   DB.lastForcedRetirements = [];
 
   return { myTeamId: data.ui.myTeamId && teamMap.has(data.ui.myTeamId) ? data.ui.myTeamId : null, liveGame };
