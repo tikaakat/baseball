@@ -169,7 +169,7 @@ export function restoreState(data: SaveData): { myTeamId: string | null; liveGam
   DB.gachaDoneThisCycle = data.db.gachaDoneThisCycle;
   DB.currentSeasonNum = data.db.currentSeasonNum;
   DB.lastManagerChanges = data.db.lastManagerChanges;
-  DB.options = data.db.options ?? {};
+  DB.options = data.db.options;
   DB.lastForcedRetirements = [];
 
   return { myTeamId: data.ui.myTeamId && teamMap.has(data.ui.myTeamId) ? data.ui.myTeamId : null, liveGame };

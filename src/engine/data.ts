@@ -176,7 +176,7 @@ export const SERIES_KEYS = ['H1', 'B1', 'H2', 'B2', 'JS'] as const;
 export const TUNING = {
   /** 1本目の鉛筆 */
   p1: {
-    hit: { base: 0.138, contact: 0.042 },        // ヒット = base + contact×c
+    hit: { base: 0.142, contact: 0.042 },        // ヒット = base + contact×c
     walk: 0.082,
     k: { base: 0.195, contact: -0.08, power: 0.03 },
     otto: { base: 0.165, power: 0.075 },         // おっと（2本目へ）

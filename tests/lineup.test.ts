@@ -13,8 +13,9 @@ describe('打順と起用', () => {
     const ops = (p: (typeof nine)[number]) => batterValue(p).ops;
     const hr = (p: (typeof nine)[number]) => batterValue(p).hrRate;
     expect(new Set(trad).size).toBe(9);
-    // 4番は（3番を除いて）最もHRの出やすい打者
-    expect(hr(trad[3])).toBe(Math.max(...nine.filter((p) => p !== trad[2]).map(hr)));
+    // 4番は（3番を除いて）長打力（HRの出やすさ×6＋長打率）が最も高い打者
+    const power = (p: (typeof nine)[number]) => hr(p) * 6 + batterValue(p).slg;
+    expect(power(trad[3])).toBe(Math.max(...nine.filter((p) => p !== trad[2]).map(power)));
     expect(ops(modern[1])).toBe(Math.max(...nine.map(ops)));
   });
 
