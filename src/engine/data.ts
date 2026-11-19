@@ -34,6 +34,15 @@ export const LEGACY_TEAM_NAMES = ['東京ジャイアンツ', '横浜ブルー�
 /** ポストシーズンの名称 */
 export const POSTSEASON_NAMES = { firstStage: 'プレーオフ ファーストステージ', finalStage: 'プレーオフ ファイナルステージ', final: 'ペンシルシリーズ' };
 
+/** 打順の方針 */
+export const LINEUP_STYLES = [
+  { key: 'traditional', label: '伝統型', desc: '1番は出塁率と足、2番はつなぎ役、3番に最強打者、4番に長距離砲（NPBでおなじみ）' },
+  { key: 'modern', label: '2番最強型', desc: '2番に最強打者を置き、上位で打席を多く回す（近年のMLB流）' },
+  { key: 'speed', label: '機動力型', desc: '1・2番に足の速い選手を並べ、塁上でかき回す' },
+  { key: 'ops', label: '打力順', desc: '打力（出塁率＋長打率）の高い順に並べる' },
+] as const;
+export type LineupStyleKey = (typeof LINEUP_STYLES)[number]['key'];
+
 /** 野手の控え（守備位置の表記） */
 export const BENCH_POSITIONS = ['捕', '内', '内', '外'];
 /** 投手陣の人数 */
@@ -158,8 +167,6 @@ export const ROOKIE_MAX_STAT = 230;
 /** 新人の入団年齢（高卒〜社会人） */
 export const ROOKIE_AGE = [20, 25] as const;
 export const GROWTH_PEAK = { early: 25, normal: 28, late: 32 } as const;
-/** 打力上位から割り当てる打順の優先順 */
-export const BATTING_SLOT_PRIORITY = [3, 4, 2, 5, 1, 6, 7, 8, 9];
 export const SERIES_KEYS = ['H1', 'B1', 'H2', 'B2', 'JS'] as const;
 
 /**

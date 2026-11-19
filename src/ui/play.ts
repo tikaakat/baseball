@@ -137,7 +137,10 @@ function scheduleHTML(): string {
   <div class="card">
     <div class="row between">
       <h2 style="margin:0;">マイチーム: ${myTeam.name}</h2>
-      <button class="btn secondary small" id="changeTeamBtn">変更</button>
+      <div class="row" style="gap:6px;">
+        <button class="btn secondary small" id="editLineupBtn">⚙ 編成</button>
+        <button class="btn secondary small" id="changeTeamBtn">変更</button>
+      </div>
     </div>
     <div class="muted" style="margin-top:4px;">${myTeam.wins}勝 ${myTeam.losses}敗 ${myTeam.ties}分　（${played.length}/${mine.length} 試合消化）</div>
     ${todayHtml}
@@ -569,6 +572,7 @@ export function wirePlayEvents(): void {
   });
   on('#closeGachaBtn', () => { UI.gachaResults = null; render(); });
 
+  on('#editLineupBtn', () => { UI.tab = 'roster'; UI.rosterTeamId = UI.myTeamId; render(); });
   on('#changeTeamBtn', () => {
     UI.myTeamId = null; UI.gachaSelecting = false; UI.gachaMySelection = null; UI.gachaResults = null;
     render();

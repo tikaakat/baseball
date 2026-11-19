@@ -1,6 +1,7 @@
 /* チーム編成：ロースター・投手陣・打順・監督・ガチャ・引退 */
-import { ABILITY_AFFINITY, BATTING_SLOT_PRIORITY, BENCH_POSITIONS, MANAGER_TYPES, POSITIONS, RETIREMENT, STAFF_SIZE, TEAM_DEFS } from './data';
+import { ABILITY_AFFINITY, BENCH_POSITIONS, MANAGER_TYPES, POSITIONS, RETIREMENT, STAFF_SIZE, TEAM_DEFS } from './data';
 import { createPitcher, createPlayer, overallOf, performanceScore, pickPlayerIdentity, pickUniformNumber, pitcherQuality, retirePlayer } from './player';
+import { orderByStyle, styleForManager } from './lineup';
 import { DB } from './state';
 import { emptyPitchLine } from './stats';
 import type { GachaResult, Manager, ManagerEffects, Player, Team } from './types';
@@ -71,7 +72,7 @@ export function reviewStaff(t: Team): string | null {
   const era = (p: Player) => (p.pStats.outs > 0 ? (p.pStats.r * 27) / p.pStats.outs : 99);
   const starters = t.staff.rotation.map((id) => t.pitchers.find((p) => p.id === id)).filter((p): p is Player => !!p);
   const worst = starters.filter((p) => p.pStats.outs >= 120 && era(p) > 5.0).sort((a, b) => era(b) - era(a))[0];
-  if (!worst) return null;
+  if (!worst || t.staffManual) return null;
   const candidates = t.pitchers.filter((p) => !t.staff.rotation.includes(p.id) && p.id !== t.staff.closer && p.id !== t.staff.setup);
   const best = candidates.sort((a, b) => (pitcherQuality(b) + b.pitch!.stamina * 0.3) - (pitcherQuality(a) + a.pitch!.stamina * 0.3))[0];
   if (!best || (best.pStats.outs >= 30 && era(best) >= era(worst))) return null;
@@ -146,6 +147,7 @@ export function managerEffects(m: Manager | null | undefined): ManagerEffects {
 
 export function hireNewManager(team: Team): void {
   const type = choice(MANAGER_TYPES);
+  if (!team.lineupStyleLocked) team.lineupStyle = styleForManager(type.key);
   team.manager = {
     type: type.key, label: type.label, desc: type.desc,
     hireSeason: DB.currentSeasonNum || 1, tenureYears: randInt(3, 30),
@@ -167,17 +169,11 @@ export function createTeams(): Team[] {
     };
     assignStaffRoles(team);
     hireNewManager(team);
+    team.battingOrder = orderByStyle(team.battingOrder, team.lineupStyle ?? 'traditional');
     return team;
   });
 }
 
-/** シーズン成績（実績が無ければ基礎能力）に応じて打順を組み直す。能力は選手に固定のまま */
-export function reorderBattingOrderByPerformance(t: Team): void {
-  const ranked = t.battingOrder.slice().sort((a, b) => performanceScore(b) - performanceScore(a));
-  const newOrder = new Array<Player>(9);
-  ranked.forEach((p, i) => { newOrder[BATTING_SLOT_PRIORITY[i] - 1] = p; });
-  t.battingOrder = newOrder;
-}
 
 /** ガチャの放出候補（加入2年未満の選手は、候補が2人以上いる限り保護） */
 export function gachaCandidates(t: Team): Player[] {

@@ -2,6 +2,7 @@
 import { autoSimGame, newGame } from './game';
 import { currentDay } from './schedule';
 import { DB, teamById } from './state';
+import { reviewRegulars } from './lineup';
 import { reviewStaff } from './team';
 import type { Game, ScheduleGame } from './types';
 
@@ -26,7 +27,7 @@ const dayFinished = (day: number) => DB.schedule.every((g) => g.day !== day || g
 /** 1日の全試合が終わったときの処理（15日ごとに投手陣を見直す） */
 export function onDayFinished(day: number): void {
   if (day % 15 !== 0) return;
-  DB.teams.forEach((t) => { reviewStaff(t); });
+  DB.teams.forEach((t) => { reviewStaff(t); reviewRegulars(t); });
 }
 
 /** 今日から n 日分を自動で消化する（マイチームの試合も含む）。消化した日数を返す */

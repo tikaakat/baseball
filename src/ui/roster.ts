@@ -2,9 +2,12 @@
 import { ABILITY_INFO } from '../engine/data';
 import { DB, leagueName, teamById } from '../engine/state';
 import { avgOfStats, eraOf, ipOf, opsOfStats } from '../engine/stats';
-import type { Player } from '../engine/types';
+import { LINEUP_STYLES, type LineupStyleKey } from '../engine/data';
+import { batterValue, lineupStyleLabel, orderByStyle, reviewRegulars, styleForManager } from '../engine/lineup';
+import { assignStaffRoles } from '../engine/team';
+import type { Player, Team } from '../engine/types';
 import { render } from './app';
-import { $, $$, abilityBadges, fmt3, fmt3plain, fmtEra, formatNumber, nameBadge } from './format';
+import { $, $$, abilityBadges, abilityShort, fmt3, fmt3plain, fmtEra, formatNumber, nameBadge } from './format';
 import { openEditPlayerModal, openEditTeamModal } from './modal';
 import { UI } from './state';
 
@@ -42,7 +45,11 @@ function rosterDetailHTML(teamId: string): string {
       <button class="edit-btn" data-editplayer="${p.id}">✎</button>
     </div>`;
   const bench = t.roster.filter((p) => !t.battingOrder.includes(p));
-  const abilityRows = t.battingOrder.map((p, i) => playerRow(p, String(i + 1))).join('')
+  const isMine = UI.myTeamId === t.id;
+  const moveBtns = (p: Player, i: number) => (isMine && t.lineupManual
+    ? `<div class="move-btns"><button class="edit-btn" data-move="${p.id}:-1" ${i === 0 ? 'disabled' : ''}>▲</button><button class="edit-btn" data-move="${p.id}:1" ${i === 8 ? 'disabled' : ''}>▼</button></div>`
+    : '');
+  const abilityRows = t.battingOrder.map((p, i) => playerRow(p, String(i + 1)).replace('<button class="edit-btn" data-editplayer', `${moveBtns(p, i)}<button class="edit-btn" data-editplayer`)).join('')
     + (bench.length ? `<div class="muted" style="margin:8px 0 2px;font-size:11px;">控え</div>${bench.map((p) => playerRow(p, '控')).join('')}` : '');
 
   const roleOf = (p: Player) => {
@@ -104,6 +111,7 @@ function rosterDetailHTML(teamId: string): string {
     </div>
   </div>
   ${managerHtml}
+  ${isMine ? myTeamEditorHTML(t) : `<div class="card"><h2>打順の方針</h2><div class="muted">${lineupStyleLabel(t.lineupStyle)}（監督の采配による）</div></div>`}
   <div class="card">
     <h2>打順・能力<span class="muted" style="font-size:11px;font-weight:400;">（成績に応じて自動編成）</span></h2>
     ${abilityRows}
@@ -131,7 +139,49 @@ function rosterDetailHTML(teamId: string): string {
   </div>`;
 }
 
+/** 自チームの編成（打順の方針・手動の打順・スタメン入替・投手の役割） */
+function myTeamEditorHTML(t: Team): string {
+  const styleOpts = LINEUP_STYLES.map((st) => `<option value="${st.key}" ${t.lineupStyle === st.key ? 'selected' : ''}>${st.label}</option>`).join('');
+  const styleDesc = LINEUP_STYLES.find((st) => st.key === t.lineupStyle)?.desc ?? '';
+  const bench = t.roster.filter((p) => !t.battingOrder.includes(p));
+  const opt = (p: Player, extra = '') => `<option value="${p.id}">${p.pos} ${p.name}${extra}</option>`;
+  const ops = (p: Player) => `（OPS目安 ${batterValue(p).ops.toFixed(3)}）`;
+  const rotation = t.staff.rotation.map((id) => t.pitchers.find((p) => p.id === id)).filter((p): p is Player => !!p);
+  const pen = t.pitchers.filter((p) => !t.staff.rotation.includes(p.id));
+  const pitchOpt = (p: Player, sel: string | null) => `<option value="${p.id}" ${sel === p.id ? 'selected' : ''}>${p.name}（${abilityShort(p)}）</option>`;
+  return `<div class="card editor">
+    <h2>⚙ 編成（マイチーム）</h2>
+    <label>打順の方針</label>
+    <select id="lineupStyleSel">${styleOpts}</select>
+    <div class="muted" style="font-size:11px;margin-top:3px;">${styleDesc}</div>
+    <label class="check"><input type="checkbox" id="lineupManualChk" ${t.lineupManual ? 'checked' : ''}> 打順を自分で決める（▲▼で並べ替え。休養した選手の打順には控えが入ります）</label>
+
+    <label>スタメンと控えを入れ替える</label>
+    <div class="row">
+      <select id="swapStarterSel">${t.battingOrder.map((p) => opt(p, ops(p))).join('')}</select>
+      <span>⇄</span>
+      <select id="swapBenchSel">${bench.map((p) => opt(p, ops(p))).join('')}</select>
+      <button class="btn small" id="swapLineupBtn">入替</button>
+    </div>
+
+    <label>先発ローテーションと救援を入れ替える</label>
+    <div class="row">
+      <select id="swapRotSel">${rotation.map((p) => pitchOpt(p, null)).join('')}</select>
+      <span>⇄</span>
+      <select id="swapPenSel">${pen.map((p) => pitchOpt(p, null)).join('')}</select>
+      <button class="btn small" id="swapStaffBtn">入替</button>
+    </div>
+    <div class="row" style="margin-top:6px;">
+      <label style="margin:0;">抑え</label><select id="closerSel">${pen.map((p) => pitchOpt(p, t.staff.closer)).join('')}</select>
+      <label style="margin:0;">セットアッパー</label><select id="setupSel">${pen.map((p) => pitchOpt(p, t.staff.setup)).join('')}</select>
+    </div>
+    <div class="muted" style="font-size:11px;margin-top:8px;">${t.lineupManual || t.staffManual ? '手動で決めた部分は、シーズン中の自動の見直し（レギュラー・先発の入替）をしません。' : '今はすべて監督（AI）におまかせです。成績に応じてシーズン中もレギュラーや先発が入れ替わります。'}</div>
+    ${t.lineupManual || t.staffManual || t.lineupStyleLocked ? '<button class="btn secondary small" id="resetEditorBtn" style="margin-top:8px;">すべて監督におまかせに戻す</button>' : ''}
+  </div>`;
+}
+
 export function wireRosterEvents(): void {
+  wireEditorEvents();
   $$('[data-team]').forEach((c) => {
     c.onclick = () => { UI.rosterTeamId = c.dataset.team!; render(); };
   });
@@ -146,4 +196,72 @@ export function wireRosterEvents(): void {
   });
   const back = $('#backToTeamsBtn');
   if (back) back.onclick = () => { UI.rosterTeamId = null; render(); };
+}
+
+function wireEditorEvents(): void {
+  const t = UI.myTeamId ? teamById(UI.myTeamId) : undefined;
+  if (!t || UI.rosterTeamId !== t.id) return;
+  const val = (sel: string) => $<HTMLSelectElement>(sel)?.value ?? '';
+  const find = (id: string) => [...t.roster, ...t.pitchers].find((p) => p.id === id);
+
+  const styleSel = $<HTMLSelectElement>('#lineupStyleSel');
+  if (styleSel) styleSel.onchange = () => {
+    t.lineupStyle = styleSel.value as LineupStyleKey;
+    t.lineupStyleLocked = true;
+    if (!t.lineupManual) t.battingOrder = orderByStyle(t.battingOrder, t.lineupStyle);
+    render();
+  };
+  const manual = $<HTMLInputElement>('#lineupManualChk');
+  if (manual) manual.onchange = () => {
+    t.lineupManual = manual.checked;
+    if (!t.lineupManual) t.battingOrder = orderByStyle(t.battingOrder, t.lineupStyle ?? 'traditional');
+    render();
+  };
+  $$('[data-move]').forEach((b) => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      const [id, dir] = b.dataset.move!.split(':');
+      const i = t.battingOrder.findIndex((p) => p.id === id), j = i + Number(dir);
+      if (i < 0 || j < 0 || j > 8) return;
+      [t.battingOrder[i], t.battingOrder[j]] = [t.battingOrder[j], t.battingOrder[i]];
+      render();
+    };
+  });
+  const swapLineup = $('#swapLineupBtn');
+  if (swapLineup) swapLineup.onclick = () => {
+    const a = find(val('#swapStarterSel')), b = find(val('#swapBenchSel'));
+    if (!a || !b) return;
+    t.battingOrder[t.battingOrder.indexOf(a)] = b;
+    const pos = a.pos; a.pos = b.pos; b.pos = pos; // 守備位置も入れ替える
+    t.lineupManual = true;
+    render();
+  };
+  const swapStaff = $('#swapStaffBtn');
+  if (swapStaff) swapStaff.onclick = () => {
+    const a = val('#swapRotSel'), b = val('#swapPenSel');
+    if (!a || !b) return;
+    t.staff.rotation = t.staff.rotation.map((id) => (id === a ? b : id));
+    if (t.staff.closer === b) t.staff.closer = a;
+    if (t.staff.setup === b) t.staff.setup = a;
+    t.staffManual = true;
+    render();
+  };
+  const closer = $<HTMLSelectElement>('#closerSel');
+  if (closer) closer.onchange = () => {
+    if (t.staff.setup === closer.value) t.staff.setup = t.staff.closer;
+    t.staff.closer = closer.value; t.staffManual = true; render();
+  };
+  const setup = $<HTMLSelectElement>('#setupSel');
+  if (setup) setup.onchange = () => {
+    if (t.staff.closer === setup.value) t.staff.closer = t.staff.setup;
+    t.staff.setup = setup.value; t.staffManual = true; render();
+  };
+  const reset = $('#resetEditorBtn');
+  if (reset) reset.onclick = () => {
+    t.lineupManual = false; t.staffManual = false; t.lineupStyleLocked = false;
+    t.lineupStyle = styleForManager(t.manager?.type);
+    reviewRegulars(t);
+    assignStaffRoles(t);
+    render();
+  };
 }

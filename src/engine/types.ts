@@ -121,6 +121,14 @@ export interface Team {
   staff: PitchingStaff;
   /** 次に先発するローテーションの番号 */
   rotationIdx: number;
+  /** 打順の方針（AIは監督の采配タイプから決める） */
+  lineupStyle?: import('./data').LineupStyleKey;
+  /** プレイヤーが方針を選んだ（監督が替わっても変えない） */
+  lineupStyleLocked?: boolean;
+  /** 打順を手動で固定している（休養した選手の打順に控えが入る） */
+  lineupManual?: boolean;
+  /** 投手の役割を手動で決めている（AIの見直しをしない） */
+  staffManual?: boolean;
   wins: number;
   losses: number;
   ties: number;

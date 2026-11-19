@@ -2,6 +2,7 @@
 import { currentBattingKey, emptyBases, finalizeAtBat, pencilsFor, resolveAtBat, rollPencil1, rollPencil2 } from './atbat';
 import { TUNING } from './data';
 import { aiPitchingChoice, assignDecisions, currentPitcher, dayKeyFor, enterPitcher, fieldingSide, findPlayer, pickStarter, trackLeadChange } from './pitching';
+import { gameLineup } from './lineup';
 import { managerEffects } from './team';
 import { DB } from './state';
 import type { BoxLine, Game, P1Face, P2Face, PitchBoxLine, Play, Player, SeriesKey, Side, Team } from './types';
@@ -11,7 +12,7 @@ export function newGame(homeTeam: Team, awayTeam: Team, scheduleId: string | nul
   const game: Game = {
     scheduleId: scheduleId || null, home: homeTeam, away: awayTeam,
     dayKey: dayKeyFor(scheduleId || null),
-    lineup: { home: homeTeam.battingOrder.map((p) => p.id), away: awayTeam.battingOrder.map((p) => p.id) },
+    lineup: { home: gameLineup(homeTeam), away: gameLineup(awayTeam) },
     pitcher: { home: '', away: '' }, pitchersUsed: { home: [], away: [] }, pbox: {},
     winCand: null, loseCand: null,
     inning: 1, half: 'top', outs: 0, bases: emptyBases(),

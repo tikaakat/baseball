@@ -4,7 +4,8 @@ import { resetPlayerForNewSeason, resetPlayerSeq } from './player';
 import { createSchedule } from './schedule';
 import { finalizeStandings } from './standings';
 import { DB } from './state';
-import { assignStaffRoles, createTeams, hireNewManager, reorderBattingOrderByPerformance, retireVeterans } from './team';
+import { reviewRegulars } from './lineup';
+import { assignStaffRoles, createTeams, hireNewManager, retireVeterans } from './team';
 import type { ManagerChange, Player, Team } from './types';
 
 /** 完全リセット：チーム名・選手も含めて全てを新規生成する */
@@ -32,12 +33,12 @@ export function startNewSeason(): void {
     const rank = rankMap[t.id] || 1;
     t.consecutiveBClass = rank > 3 ? (t.consecutiveBClass || 0) + 1 : 0;
 
-    reorderBattingOrderByPerformance(t);
+    reviewRegulars(t); // 今季の成績をもとに、レギュラーと打順を見直す
 
     t.wins = 0; t.losses = 0; t.ties = 0; t.runsFor = 0; t.runsAgainst = 0;
     t.roster.forEach((p) => resetPlayerForNewSeason(p));
     allRetired = allRetired.concat(retireVeterans(t));
-    assignStaffRoles(t); // 能力の変化に合わせて投手の役割を決め直す
+    if (!t.staffManual) assignStaffRoles(t); // 能力の変化に合わせて投手の役割を決め直す
     t.rotationIdx = 0;
 
     if (t.manager) t.manager.tenureYears--;

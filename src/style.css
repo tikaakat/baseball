@@ -387,3 +387,13 @@ select[data-gachaselect]{
 .pitcher-line{font-size:10.5px;color:var(--dim);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .pitcher-line b{color:var(--cream);}
 .pitcher-line .tired{color:var(--bad);font-weight:800;}
+
+/* 編成エディタ */
+.editor label{display:block;font-size:12px;color:var(--dim);margin:10px 0 4px;}
+.editor label.check{display:flex;gap:6px;align-items:flex-start;color:var(--cream);font-size:12px;}
+.editor select{max-width:100%;}
+.editor .row{flex-wrap:wrap;gap:6px;align-items:center;}
+.editor .row select{flex:1 1 140px;min-width:0;}
+.move-btns{display:flex;flex-direction:column;gap:2px;margin-right:4px;}
+.move-btns .edit-btn{padding:0 6px;line-height:1.3;}
+.move-btns .edit-btn:disabled{opacity:.25;}
