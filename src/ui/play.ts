@@ -13,7 +13,6 @@ import { DB, leagueName, teamById } from '../engine/state';
 import { eraOf, ipOf, opsOf } from '../engine/stats';
 import { gachaCandidates, gachaSwapAllTeams, worstPerformer } from '../engine/team';
 import type { GachaResult, Game, Player, ScheduleGame, Series, SeriesKey } from '../engine/types';
-import { choice } from '../engine/util';
 import { render } from './app';
 import { $, $$, abilityBadges, abilityShort, fmt3plain, fmtEra, gradeBadge, gradeOf, shortTeamName } from './format';
 import { openConfirmModal } from './modal';
@@ -21,6 +20,12 @@ import { latestNewsHTML } from './news';
 import { shareSeason } from './share';
 import { maybeShowGuide } from './guide';
 import { UI, resetTransientUi } from './state';
+import { pencil3dHTML, rollPencil3d, type PencilFace } from './pencil3d';
+
+const toneOf = (f: string): string => (f === 'flyout' || f === 'groundout' ? 'out' : f);
+const facesOf = (list: readonly string[]): PencilFace[] => list.map((f) => ({ label: FACE_LABEL[f], tone: toneOf(f) }));
+const P1_PENCIL = facesOf(P1_FACES), P2_PENCIL = facesOf(P2_FACES);
+const idx = (list: readonly string[], f: string | null | undefined): number | null => (f ? Math.max(0, list.indexOf(f)) : null);
 
 const seasonDone = () => regularSeasonComplete(DB.schedule);
 
@@ -306,8 +311,8 @@ function playScreenHTML(game: Game): string {
   const outsDots = [0, 1].map((i) => `<span class="dot ${i < game.outs ? 'on' : ''}"></span>`).join('');
 
   const pencil2Active = game.pencilStage === 'awaitingPencil2';
-  const p1Text = game.pendingP1 ? FACE_LABEL[game.pendingP1] : (game.lastPlay ? FACE_LABEL[game.lastPlay.p1] : '?');
-  const p2Text = (!pencil2Active && game.lastPlay?.p2) ? FACE_LABEL[game.lastPlay.p2] : '?';
+  const p1Shown = idx(P1_FACES, game.pendingP1 ?? game.lastPlay?.p1);
+  const p2Shown = !pencil2Active ? idx(P2_FACES, game.lastPlay?.p2) : null;
   const btnLabel = pencil2Active ? '② もう一本の鉛筆を転がす！' : '① 鉛筆を転がす';
   const noteText = pencil2Active ? '「おっと」が出た！もう一本転がそう' : '';
 
@@ -363,9 +368,9 @@ function playScreenHTML(game: Game): string {
     </div>
     ${decisionCardHTML(game)}
     ${batter ? pencilBarsHTML(batter, game) : ''}
-    <div class="dice-area">
-      <div><div class="hex" id="hex1">${p1Text}</div><div class="hex-label">1本目</div></div>
-      <div><div class="hex ${pencil2Active ? '' : 'dim'}" id="hex2">${p2Text}</div><div class="hex-label">2本目</div></div>
+    <div class="pencil-desk">
+      ${pencil3dHTML('pencil1', P1_PENCIL, p1Shown, { color: 'yellow', label: '1本目' })}
+      ${pencil3dHTML('pencil2', P2_PENCIL, p2Shown, { color: 'blue', label: '2本目', dim: !pencil2Active && p2Shown === null })}
     </div>
     <div class="play-note" id="playNote">${noteText}</div>
     ${abilityFlashHtml}
@@ -461,23 +466,13 @@ function doRoll(): void {
 
   const res = rollLiveStep(game); // エンジンは同期的に結果を確定する
 
-  const hex = $(wasAwaiting ? '#hex2' : '#hex1');
-  const faces: readonly string[] = wasAwaiting ? P2_FACES : P1_FACES;
-  hex?.classList.add('spin');
-
-  // 一定間隔でフリップして、すぐ結果を見せる（約0.5秒）
-  let spins = 0;
-  const spinTimer = setInterval(() => {
-    if (hex) hex.textContent = FACE_LABEL[choice(faces)];
-    spins++;
-    if (spins > 7) {
-      clearInterval(spinTimer);
-      const face = res && (wasAwaiting ? ('p2' in res ? res.p2 : null) : res.p1);
-      if (hex) hex.textContent = face ? FACE_LABEL[face] : '?';
-      UI.rolling = false;
-      render();
-    }
-  }, 60);
+  // 鉛筆を転がして、出た面で止まってから画面を更新する
+  const face = res && (wasAwaiting ? ('p2' in res ? res.p2 : null) : res.p1);
+  const list: readonly string[] = wasAwaiting ? P2_FACES : P1_FACES;
+  void rollPencil3d($(wasAwaiting ? '#pencil2' : '#pencil1'), idx(list, face) ?? 0).then(() => {
+    UI.rolling = false;
+    render();
+  });
 }
 
 /* ---------- イベント ---------- */
