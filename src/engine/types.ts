@@ -183,6 +183,9 @@ export interface Play extends ContactResult {
   errorFielder: Player | null;
   /** 送りバント成功（打数に数えない） */
   isSacBunt?: boolean;
+  /** 2本鉛筆方式の出目（試作） */
+  /** 対戦表方式（試作）の出目：打者 a・投手 b・分かれたマスの3本目 c */
+  board?: { a: number; b: number; c: number | null; side: 'batter' | 'pitcher' };
   p1: P1Face;
   p2: P2Face | null;
   usedPencil2: boolean;

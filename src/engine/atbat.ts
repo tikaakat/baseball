@@ -5,6 +5,7 @@
  */
 import { TUNING } from './data';
 import { currentPitcher, fatigueOf } from './pitching';
+import { getAtBatModel, resolveBoardAtBat } from './board';
 import { pickWeightedFielderForError } from './player';
 import { managerEffects } from './team';
 import type { AbilityKey, Bases, ContactResult, Game, Outcome, P1Face, P2Face, Play, Player } from './types';
@@ -54,10 +55,13 @@ export function pencilsFor(batter: Player, game: Game | null): Pencils {
 
 /** 投手が打者の鉛筆を書き換える（球威・制球・疲労）。凡打の面で帳尻を合わせる */
 function applyPitcher(pc: Pencils, game: Game): Pencils {
-  const pitcher = currentPitcher(game);
+  return applyPitcherTo(pc, currentPitcher(game), fatigueOf(game, game.half === 'top' ? 'home' : 'away'));
+}
+
+/** 投手（能力と疲労）で鉛筆を書き換える */
+export function applyPitcherTo(pc: Pencils, pitcher: Player | undefined, f: number): Pencils {
   if (!pitcher?.pitch) return pc;
   const s = frac(pitcher.pitch.stuff) - 0.5, c = frac(pitcher.pitch.control) - 0.5;
-  const f = fatigueOf(game, game.half === 'top' ? 'home' : 'away');
   const P = TUNING.pitcher;
   const m = (x: { stuff?: number; control?: number; fatigue?: number }) =>
     Math.max(0.05, 1 + (x.stuff ?? 0) * s + (x.control ?? 0) * c + (x.fatigue ?? 0) * f);
@@ -227,8 +231,17 @@ const OUT_RESULTS: Outcome[] = ['flyout', 'groundout', 'k'];
 
 /** 鉛筆の出目に、走力・特殊能力・失策を反映して打席結果を確定する */
 export function finalizeAtBat(batter: Player, p1: P1Face, p2: P2Face | null, bases: Bases, game: Game | null): Play {
+  return finalizeResult(batter, p1 === 'otto' ? p2! : p1, bases, game, { p1, p2 });
+}
+
+/**
+ * 鉛筆で出た結果（どちらの方式でも）に、走力・特殊能力・失策を反映して打席を確定する。
+ * meta は画面表示用の出目
+ */
+export function finalizeResult(batter: Player, rolled: Outcome, bases: Bases, game: Game | null, meta: { p1: P1Face; p2: P2Face | null; board?: Play['board'] }): Play {
+  const { p1, p2 } = meta;
   const usedPencil2 = p1 === 'otto';
-  let result: Outcome = p1 === 'otto' ? p2! : p1;
+  let result: Outcome = rolled;
   let abilityNote: string | null = null;
   let abilityKey: AbilityKey | null = null; // どの"名前つき特殊能力"が結果を覆したか（演出用）
   const eff = effectiveBatter(batter, game);
@@ -317,10 +330,11 @@ export function finalizeAtBat(batter: Player, p1: P1Face, p2: P2Face | null, bas
 
   if (game) game.battedThisGame.add(batter.id);
   const play = resolveContact(result, batter, bases, { outs: game ? game.outs : 0, speed: eff.speed, gidpResist });
-  return { ...play, errorFielder, p1, p2, usedPencil2, abilityNote, abilityKey, batter, rawResult: result };
+  return { ...play, errorFielder, p1, p2, usedPencil2, abilityNote, abilityKey, batter, rawResult: result, board: meta.board };
 }
 
 export function resolveAtBat(batter: Player, bases: Bases, game: Game | null): Play {
+  if (getAtBatModel() === 'board') return resolveBoardAtBat(batter, bases, game);
   const pencils = pencilsFor(batter, game);
   const p1 = rollPencil1(pencils);
   const p2 = p1 === 'otto' ? rollPencil2(pencils) : null;
