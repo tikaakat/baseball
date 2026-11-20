@@ -200,6 +200,7 @@ export interface LastPlay {
   p2: P2Face | null;
   abilityKey: AbilityKey | null;
   abilityNote: string | null;
+  board?: Play['board'];
 }
 
 export type SeriesKey = 'H1' | 'B1' | 'H2' | 'B2' | 'JS';

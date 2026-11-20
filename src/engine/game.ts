@@ -1,6 +1,7 @@
 /* 試合の進行 */
 import { currentBattingKey, emptyBases, finalizeAtBat, pencilsFor, resolveAtBat, rollPencil1, rollPencil2 } from './atbat';
 import { TUNING } from './data';
+import { getAtBatModel } from './board';
 import { aiPitchingChoice, assignDecisions, currentPitcher, dayKeyFor, enterPitcher, fieldingSide, findPlayer, pickStarter, trackLeadChange } from './pitching';
 import { gameLineup } from './lineup';
 import { aiTactics } from './tactics';
@@ -152,7 +153,7 @@ export function applyPlay(game: Game, play: Play): void {
   if (play.abilityNote) text += ` （${play.abilityNote}）`;
   if (runsThisPlay.length) text += ` ${runsThisPlay.length}点入る！`;
   pushLog(game, text);
-  game.lastPlay = { p1: play.p1, p2: play.p2, abilityKey: play.abilityKey, abilityNote: play.abilityNote };
+  game.lastPlay = { p1: play.p1, p2: play.p2, abilityKey: play.abilityKey, abilityNote: play.abilityNote, board: play.board };
 
   game.orderIdx[battingKey] = (game.orderIdx[battingKey] + 1) % game.lineup[battingKey].length;
 
@@ -269,7 +270,7 @@ export type RollStepResult =
   | { stage: 'otto'; p1: P1Face; batter: Player }
   | { stage: 'resolved'; p1?: P1Face; p2?: P2Face | null; play: Play | null; stealOnly?: boolean };
 
-/** 手動プレイ：鉛筆を1本転がす */
+/** 手動プレイ：鉛筆を転がす（対戦表方式は1回で1打席。以前の方式は1本ずつ） */
 export function rollStep(game: Game): RollStepResult | null {
   if (game.finished) return null;
   if (game.pencilStage === 'ready') {
@@ -279,6 +280,12 @@ export function rollStep(game: Game): RollStepResult | null {
     if (game.finished) return { stage: 'resolved', play: null, stealOnly: true };
   }
   const batter = currentBatter(game);
+  if (game.pencilStage === 'ready' && getAtBatModel() === 'board') {
+    // 対戦表方式：打者と投手の鉛筆を同時に転がして1打席が決まる
+    const play = resolveAtBat(batter, game.bases, game);
+    applyPlay(game, play);
+    return { stage: 'resolved', play };
+  }
   if (game.pencilStage === 'ready') {
     const p1 = rollPencil1(pencilsFor(batter, game));
     game.pendingP1 = p1;

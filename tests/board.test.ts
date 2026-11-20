@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { batterCard, cellOf, pitcherCard, setAtBatModel, BATTER_CELLS, PITCHER_CELLS } from '../src/engine/board';
+import { batterCard, cellOf, getAtBatModel, pitcherCard, BATTER_CELLS, PITCHER_CELLS } from '../src/engine/board';
 import { leagueReport } from './league-report';
 
-describe('対戦表方式（試作）', () => {
+describe('対戦表方式', () => {
   it('36通りの出目が、打者21マス・投手15マスにちょうど1回ずつ対応する', () => {
     const seen = new Set<string>();
     for (let a = 1; a <= 6; a++) for (let b = 1; b <= 6; b++) {
@@ -25,12 +25,10 @@ describe('対戦表方式（試作）', () => {
   });
 
   it('シーズンを回すとNPBらしい数字になる', () => {
-    setAtBatModel('board');
-    try {
-      const r = leagueReport(2);
-      expect(r.AVG).toBeGreaterThan(0.230); expect(r.AVG).toBeLessThan(0.265);
-      expect(r['HR/team']).toBeGreaterThan(70); expect(r['HR/team']).toBeLessThan(140);
-      expect(r.ERA).toBeGreaterThan(3.0); expect(r.ERA).toBeLessThan(4.6);
-    } finally { setAtBatModel('classic'); }
+    expect(getAtBatModel()).toBe('board'); // 標準は対戦表方式
+    const r = leagueReport(2);
+    expect(r.AVG).toBeGreaterThan(0.230); expect(r.AVG).toBeLessThan(0.265);
+    expect(r['HR/team']).toBeGreaterThan(70); expect(r['HR/team']).toBeLessThan(140);
+    expect(r.ERA).toBeGreaterThan(3.0); expect(r.ERA).toBeLessThan(4.6);
   });
 });

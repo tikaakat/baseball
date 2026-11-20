@@ -1,5 +1,5 @@
 /* 選手の詳細シート：今季の成績・鉛筆・年度別成績・通算・受賞歴（選手名をタップすると開く） */
-import { pencilsFor, pencilSummary } from '../engine/atbat';
+import { batterCard, pitcherCard } from '../engine/board';
 import { ABILITY_INFO } from '../engine/data';
 import { playerById } from '../engine/state';
 import { avgOfStats, eraOf, ipOf, isQualified, isQualifiedPitcher, obpOfStats, opsOfStats, slgOfStats, whipOf } from '../engine/stats';
@@ -8,6 +8,7 @@ import { render } from './app';
 import { abilityBadges, fmt3, fmt3plain, fmtEra, formatNumber } from './format';
 import { openEditPlayerModal } from './modal';
 import { UI } from './state';
+import { cardSummaryHTML } from './boardView';
 
 const cell = (label: string, value: string | number, strong = false) =>
   `<div class="stat-cell"><div class="stat-label">${label}</div><div class="stat-val ${strong ? 'strong' : ''}">${value}</div></div>`;
@@ -55,13 +56,11 @@ function addPitch(a: PitchLine, b: PitchLine): PitchLine {
   return o;
 }
 
-function pencilMini(p: Player): string {
-  const [p1, p2] = pencilSummary(pencilsFor(p, null));
-  const bar = (label: string, segs: { key: string; label: string; pct: number }[]) => `
-    <div class="pencil-bar-row"><div class="pencil-bar-label">${label}</div><div class="pencil-bar">${segs.map((x) => `<div class="seg seg-${x.key}" style="flex:${x.pct}" title="${x.label} ${Math.round(x.pct)}%">${x.pct >= x.label.length * 4.5 + 5 ? `${x.label}<small>${Math.round(x.pct)}%</small>` : x.pct >= 6 ? `<small>${Math.round(x.pct)}%</small>` : ''}</div>`).join('')}</div></div>`;
-  const legend = [['hit', 'ヒット・2ベース'], ['walk', '四球'], ['otto', 'おっと'], ['hr', 'HR'], ['k', '三振'], ['out', '凡打']]
-    .map(([k, l]) => `<span><i class="seg-${k}"></i>${l}</span>`).join('');
-  return `<div class="pencil-bars">${bar('1本目', p1)}${bar('2本目', p2)}<div class="pencil-legend">${legend}</div><div class="sub" style="font-size:10px;">平均的な投手と対戦したときの鉛筆</div></div>`;
+/** その選手の対戦表（打者は21マス、投手は15マス）の中身 */
+function cardMini(p: Player): string {
+  return p.pitch
+    ? cardSummaryHTML(pitcherCard(p), `${p.name}の表（15マス）`, '投手の鉛筆の数が大きいときに使う表。数字はマスの数（疲れると凡打のマスが減っていく）')
+    : cardSummaryHTML(batterCard(p), `${p.name}の表（21マス）`, '打者の鉛筆の数が投手以上のときに使う表。数字はマスの数');
 }
 
 export function playerSheetHTML(): string {
@@ -87,7 +86,7 @@ export function playerSheetHTML(): string {
       </div>
       <div class="p-abl" style="margin:6px 0;">${abilityBadges(p)}</div>
       ${p.ability ? `<div class="sub"><span class="pill">${ABILITY_INFO[p.ability].label}</span> ${ABILITY_INFO[p.ability].desc}</div>` : ''}
-      ${p.pitch ? '' : pencilMini(p)}
+      ${cardMini(p)}
       <div class="section-title">今季の成績${qualified ? '' : '<span class="sub">（規定未到達）</span>'}</div>
       ${p.pitch ? pitcherGrid(p.pStats) : batterGrid(p.stats)}
       <div class="section-title">年度別</div>

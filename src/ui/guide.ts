@@ -6,9 +6,9 @@ const KEY = 'pencil-baseball:guide-done';
 let shownThisSession = false;
 
 const STEPS = [
-  { title: 'これが「打者の鉛筆」', body: 'いま打席に立っている打者の鉛筆です。色の帯は各面の出やすさ。ミートが高い打者はヒット、パワーがある打者は「おっと」とHRの面が大きくなります。相手投手の球威・制球、疲れ具合もここに反映されます。' },
-  { title: '鉛筆を転がす', body: '画面下のボタンで1本目を転がします。「おっと」が出たら2本目へ。2本目で長打や本塁打が出ることも。長押しすると早送りできます。' },
-  { title: '勝負所では監督に', body: '終盤の接戦で走者がいると「勝負所カード」が出ます。代打・盗塁・バント・継投・敬遠を、鉛筆の出やすさを見比べて選びましょう。打順や先発ローテーションは「⚙ 編成」から変えられます。' },
+  { title: 'これが「対戦表」', body: '打者と投手が1本ずつ鉛筆（1〜6）を転がし、縦＝打者の数・横＝投手の数のマスで結果が決まります。打者の数が投手以上なら黄色い枠の「打者の表」、投手の数が大きければ青い枠の「投手の表」。良い打者ほど打者の表にヒットやHRが多く、良い投手ほど投手の表に三振が多くなります。' },
+  { title: '鉛筆を転がす', body: '画面下のボタンで2本を同時に転がします。2色のマスに止まったら、3本目の数でどちらになるか決まります。長押しすると早送りできます。' },
+  { title: '勝負所では監督に', body: '終盤の接戦で走者がいると「勝負所カード」が出ます。代打・盗塁・バント・継投・敬遠を、表の中身（ヒットやHRの出やすさ）を見比べて選びましょう。打順や先発ローテーションは「⚙ 編成」から変えられます。' },
 ];
 
 function done(): boolean {
@@ -41,7 +41,7 @@ export function maybeShowGuide(): void {
         <button class="btn small" data-guide="next">${step === STEPS.length - 1 ? 'はじめる' : '次へ'}</button>
       </div>
     </div>`;
-    const target = step === 0 ? document.querySelector('.pencil-bars') : step === 1 ? document.querySelector('#rollBtn') : document.querySelector('.field-row');
+    const target = step === 0 ? (document.querySelector('.board-wrap') ?? document.querySelector('.pencil-bars')) : step === 1 ? document.querySelector('#rollBtn') : document.querySelector('.field-row');
     document.querySelectorAll('.guide-focus').forEach((el) => el.classList.remove('guide-focus'));
     target?.classList.add('guide-focus');
     target?.scrollIntoView({ block: 'center' });

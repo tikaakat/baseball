@@ -21,10 +21,14 @@ import { shareSeason } from './share';
 import { maybeShowGuide } from './guide';
 import { UI, resetTransientUi } from './state';
 import { pencil3dHTML, rollPencil3d, type PencilFace } from './pencil3d';
+import { boardGridHTML } from './boardView';
+import { boardFor, getAtBatModel } from '../engine/board';
 
 const toneOf = (f: string): string => (f === 'flyout' || f === 'groundout' ? 'out' : f);
 const facesOf = (list: readonly string[]): PencilFace[] => list.map((f) => ({ label: FACE_LABEL[f], tone: toneOf(f) }));
 const P1_PENCIL = facesOf(P1_FACES), P2_PENCIL = facesOf(P2_FACES);
+const NUM_PENCIL: PencilFace[] = [1, 2, 3, 4, 5, 6].map((n) => ({ label: String(n) }));
+const isBoard = (game: Game): boolean => getAtBatModel() === 'board' && game.pencilStage === 'ready';
 const idx = (list: readonly string[], f: string | null | undefined): number | null => (f ? Math.max(0, list.indexOf(f)) : null);
 
 const seasonDone = () => regularSeasonComplete(DB.schedule);
@@ -270,6 +274,19 @@ function pencilBarsHTML(batter: Player, game: Game): string {
   return `<div class="pencil-bars"><div class="pencil-title">${batter.name}の鉛筆</div>${bar('1本目', p1)}${bar('2本目', p2)}<div class="pencil-legend">${legend}</div></div>`;
 }
 
+/** 対戦表方式：36マスの表と、打者・投手（・3本目）の鉛筆 */
+function boardDeskHTML(batter: Player, game: Game): string {
+  const pitcher = currentPitcher(game);
+  const last = game.lastPlay?.board ?? null;
+  return `
+    ${boardGridHTML(boardFor(batter, game), { batterName: batter.name, pitcherName: pitcher?.name ?? '投手' })}
+    <div class="pencil-desk">
+      ${pencil3dHTML('pencilA', NUM_PENCIL, last ? last.a - 1 : null, { color: 'yellow', label: '打者' })}
+      ${pencil3dHTML('pencilB', NUM_PENCIL, last ? last.b - 1 : null, { color: 'blue', label: '投手' })}
+      <div id="pencilCWrap" class="${last?.c ? '' : 'hidden'}">${pencil3dHTML('pencilC', NUM_PENCIL, last?.c ? last.c - 1 : null, { color: 'green', label: '3本目' })}</div>
+    </div>`;
+}
+
 /** 守っている投手（能力と疲れ具合） */
 function pitcherLineHTML(game: Game): string {
   const side = game.half === 'top' ? 'home' : 'away';
@@ -313,7 +330,7 @@ function playScreenHTML(game: Game): string {
   const pencil2Active = game.pencilStage === 'awaitingPencil2';
   const p1Shown = idx(P1_FACES, game.pendingP1 ?? game.lastPlay?.p1);
   const p2Shown = !pencil2Active ? idx(P2_FACES, game.lastPlay?.p2) : null;
-  const btnLabel = pencil2Active ? '② もう一本の鉛筆を転がす！' : '① 鉛筆を転がす';
+  const btnLabel = pencil2Active ? '② もう一本の鉛筆を転がす！' : getAtBatModel() === 'board' ? '鉛筆を転がす' : '① 鉛筆を転がす';
   const noteText = pencil2Active ? '「おっと」が出た！もう一本転がそう' : '';
 
   const abilityFlashHtml = (!pencil2Active && game.lastPlay?.abilityKey)
@@ -367,11 +384,11 @@ function playScreenHTML(game: Game): string {
       </div>` : ''}
     </div>
     ${decisionCardHTML(game)}
-    ${batter ? pencilBarsHTML(batter, game) : ''}
+    ${batter ? (isBoard(game) ? boardDeskHTML(batter, game) : `${pencilBarsHTML(batter, game)}
     <div class="pencil-desk">
       ${pencil3dHTML('pencil1', P1_PENCIL, p1Shown, { color: 'yellow', label: '1本目' })}
       ${pencil3dHTML('pencil2', P2_PENCIL, p2Shown, { color: 'blue', label: '2本目', dim: !pencil2Active && p2Shown === null })}
-    </div>
+    </div>`) : ''}
     <div class="play-note" id="playNote">${noteText}</div>
     ${abilityFlashHtml}
     <div class="log-box" id="logBox">${logHtml}</div>
@@ -466,6 +483,7 @@ function doRoll(): void {
 
   const res = rollLiveStep(game); // エンジンは同期的に結果を確定する
 
+  if (!wasAwaiting && getAtBatModel() === 'board') { void animateBoardRoll(res); return; }
   // 鉛筆を転がして、出た面で止まってから画面を更新する
   const face = res && (wasAwaiting ? ('p2' in res ? res.p2 : null) : res.p1);
   const list: readonly string[] = wasAwaiting ? P2_FACES : P1_FACES;
@@ -473,6 +491,22 @@ function doRoll(): void {
     UI.rolling = false;
     render();
   });
+}
+
+/** 対戦表方式：2本を同時に転がし、止まったマスを光らせる。分かれたマスなら3本目も転がす */
+async function animateBoardRoll(res: ReturnType<typeof rollStep>): Promise<void> {
+  const bd = res && 'play' in res ? res.play?.board : undefined;
+  if (bd) {
+    await Promise.all([rollPencil3d($('#pencilA'), bd.a - 1, 680), rollPencil3d($('#pencilB'), bd.b - 1, 740)]);
+    $(`[data-cell="${bd.a}-${bd.b}"]`)?.classList.add('on');
+    if (bd.c) {
+      $('#pencilCWrap')?.classList.remove('hidden');
+      await rollPencil3d($('#pencilC'), bd.c - 1, 560);
+    }
+    await new Promise((r) => setTimeout(r, 350)); // 止まったマスを見せてから次の打者へ
+  }
+  UI.rolling = false;
+  render();
 }
 
 /* ---------- イベント ---------- */
