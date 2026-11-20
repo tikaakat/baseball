@@ -544,3 +544,17 @@ table.standings tr.cutline td{border-bottom:2px solid var(--pencil-dark);}
 .stat-val.strong{color:var(--pencil);font-size:16px;}
 .stat-val small{font-size:10px;color:var(--dim);font-weight:600;}
 .compact-table tr.total td{font-weight:800;color:var(--pencil);border-top:2px solid var(--line);}
+
+/* ---------- 見直し（コンパクト化） ---------- */
+.pick-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.pick-team{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:var(--panel-light);border:1px solid var(--line);border-radius:10px;padding:9px 10px;color:var(--cream);cursor:pointer;}
+.pick-team b{font-size:13px;}
+.pick-team span{font-size:10px;color:var(--dim);}
+.pick-team:active{border-color:var(--pencil);}
+.chev{color:var(--dim);font-size:18px;padding:0 4px;cursor:pointer;}
+small.given{color:var(--dim);font-weight:600;}
+table.fit{width:100%;table-layout:auto;}
+table.fit td,table.fit th{padding:6px 3px;white-space:nowrap;}
+table.fit td.name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;}
+.editor h2{margin-bottom:4px;}
+.editor select{width:100%;}

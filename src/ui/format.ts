@@ -52,8 +52,8 @@ export function abilityBadges(p: Player): string {
 }
 /** 能力の評価（短い文字だけ） */
 export function abilityShort(p: Player): string {
-  if (p.pitch) return `球威${gradeOf(p.pitch.stuff)}/制球${gradeOf(p.pitch.control)}/ス${gradeOf(p.pitch.stamina)}`;
-  return `P${gradeOf(p.power)}/C${gradeOf(p.contact)}/S${gradeOf(p.speed)}`;
+  if (p.pitch) return `球威${gradeOf(p.pitch.stuff)}・制球${gradeOf(p.pitch.control)}・スタミナ${gradeOf(p.pitch.stamina)}`;
+  return `パワー${gradeOf(p.power)}・ミート${gradeOf(p.contact)}・走力${gradeOf(p.speed)}`;
 }
 /** 防御率の表記 */
 export function fmtEra(n: number): string { return isFinite(n) ? n.toFixed(2) : '-.--'; }

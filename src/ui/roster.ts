@@ -1,9 +1,9 @@
 /* 「選手名鑑」タブ */
-import { ABILITY_INFO } from '../engine/data';
+import { ABILITY_INFO, LEAGUE_CODES } from '../engine/data';
 import { DB, leagueName, teamById } from '../engine/state';
 import { avgOfStats, eraOf, ipOf, opsOfStats } from '../engine/stats';
 import { LINEUP_STYLES, type LineupStyleKey } from '../engine/data';
-import { batterValue, lineupStyleLabel, orderByStyle, reviewRegulars, styleForManager } from '../engine/lineup';
+import { lineupStyleLabel, orderByStyle, reviewRegulars, styleForManager } from '../engine/lineup';
 import { assignStaffRoles } from '../engine/team';
 import type { Player, Team } from '../engine/types';
 import { render } from './app';
@@ -17,17 +17,15 @@ export function renderRoster(): string {
 }
 
 function rosterListHTML(): string {
-  const cards = DB.teams.map((t) => `
-    <div class="team-card" data-team="${t.id}">
-      <div class="row between" style="align-items:flex-start;">
-        <div class="lg">${leagueName(t.league)}</div>
-        <button class="edit-btn" data-editteam="${t.id}">✎ 編集</button>
-      </div>
-      <div class="tn">${t.name}</div>
-      <div class="tg">${t.tagline}</div>
-      <div class="rec">${t.wins}勝 ${t.losses}敗 ${t.ties}分</div>
-    </div>`).join('');
-  return `<div class="card"><h2>球団一覧</h2><div class="team-grid">${cards}</div></div>`;
+  const league = (code: string) => `<div class="card">
+    <h2>${leagueName(code)}</h2>
+    ${DB.teams.filter((t) => t.league === code).map((t) => `
+      <div class="list-row tap ${t.id === UI.myTeamId ? 'mine' : ''}" data-team="${t.id}">
+        <span>${t.name}${t.id === UI.myTeamId ? ' <span class="pill">マイチーム</span>' : ''}</span>
+        <span class="sub">${t.wins}勝${t.losses}敗${t.ties}分 ›</span>
+      </div>`).join('')}
+  </div>`;
+  return LEAGUE_CODES.map(league).join('');
 }
 
 function rosterDetailHTML(teamId: string): string {
@@ -52,7 +50,7 @@ function rosterDetailHTML(teamId: string): string {
         <div class="p-name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)} <span class="sub">${p.pos}・${p.age}歳・#${formatNumber(p.number)}</span>${p.ability ? ` <span class="pill" title="${ABILITY_INFO[p.ability].desc}">${ABILITY_INFO[p.ability].label}</span>` : ''}</div>
         <div class="p-abl">${abilityBadges(p)}</div>
       </div>
-      ${extra}<button class="edit-btn icon" data-editplayer="${p.id}" aria-label="編集">✎</button>
+      ${extra}<span class="chev" data-player="${p.id}">›</span>
     </div>`;
 
   const moveBtns = (p: Player, i: number) => (isMine && t.lineupManual
@@ -88,19 +86,20 @@ function rosterDetailHTML(teamId: string): string {
   } else if (tab === 'stats') {
     const statRows = [...t.battingOrder, ...bench].map((p, i) => {
       const st = statMode === 'career' ? p.career : p.stats;
-      return `<tr><td>${i < 9 ? i + 1 : '控'}</td><td class="name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)}</td><td>${fmt3(avgOfStats(st))}</td><td>${st.h}</td><td>${st.hr}</td><td>${st.rbi}</td><td>${st.sb || 0}</td><td>${fmt3plain(opsOfStats(st))}</td></tr>`;
+      return `<tr><td>${i < 9 ? i + 1 : '控'}</td><td class="name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)}</td><td>${fmt3(avgOfStats(st))}</td><td>${st.hr}</td><td>${st.rbi}</td><td>${fmt3plain(opsOfStats(st))}</td></tr>`;
     }).join('');
     const pitchRows = staffSorted.map((p) => {
       const st = statMode === 'career' ? p.pCareer : p.pStats;
-      return `<tr><td>${roleOf(p)}</td><td class="name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)}</td><td>${st.g}</td><td>${st.w}</td><td>${st.l}</td><td>${st.sv}</td><td>${ipOf(st)}</td><td>${fmtEra(eraOf(st))}</td></tr>`;
+      return `<tr><td>${roleOf(p)}</td><td class="name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)}</td><td>${st.w}-${st.l}</td><td>${st.sv}</td><td>${ipOf(st)}</td><td>${fmtEra(eraOf(st))}</td></tr>`;
     }).join('');
     body = `${chips('rstat', [{ key: 'season', label: '今シーズン' }, { key: 'career', label: '通算' }], statMode)}
-    <div class="card"><div class="table-scroll"><table class="compact-table">
-      <thead><tr><th></th><th class="namehead">野手</th><th>打率</th><th>安打</th><th>本</th><th>点</th><th>盗</th><th>OPS</th></tr></thead><tbody>${statRows}</tbody>
-    </table></div></div>
-    <div class="card"><div class="table-scroll"><table class="compact-table">
-      <thead><tr><th></th><th class="namehead">投手</th><th>登板</th><th>勝</th><th>敗</th><th>S</th><th>回</th><th>防御率</th></tr></thead><tbody>${pitchRows}</tbody>
-    </table></div></div>`;
+    <div class="card"><table class="compact-table fit">
+      <thead><tr><th></th><th class="namehead">野手</th><th>打率</th><th>本</th><th>点</th><th>OPS</th></tr></thead><tbody>${statRows}</tbody>
+    </table></div>
+    <div class="card"><table class="compact-table fit">
+      <thead><tr><th></th><th class="namehead">投手</th><th>勝敗</th><th>S</th><th>回</th><th>防御率</th></tr></thead><tbody>${pitchRows}</tbody>
+    </table></div>
+    <div class="sub" style="text-align:center;">選手名をタップすると詳しい成績を表示</div>`;
   } else if (tab === 'edit') {
     body = isMine ? myTeamEditorHTML(t) : `<div class="card"><div class="list-row"><span class="sub">打順の方針</span><span>${lineupStyleLabel(t.lineupStyle)}</span></div>
       <div class="muted" style="font-size:11px;margin-top:6px;">他球団の打順・継投は、監督の采配タイプに沿ってAIが決めています。</div></div>`;
@@ -130,39 +129,33 @@ function myTeamEditorHTML(t: Team): string {
   const styleOpts = LINEUP_STYLES.map((st) => `<option value="${st.key}" ${t.lineupStyle === st.key ? 'selected' : ''}>${st.label}</option>`).join('');
   const styleDesc = LINEUP_STYLES.find((st) => st.key === t.lineupStyle)?.desc ?? '';
   const bench = t.roster.filter((p) => !t.battingOrder.includes(p));
-  const opt = (p: Player, extra = '') => `<option value="${p.id}">${p.pos} ${p.name}${extra}</option>`;
-  const ops = (p: Player) => `（OPS目安 ${batterValue(p).ops.toFixed(3)}）`;
+  const batOpt = (p: Player) => `<option value="${p.id}">${p.pos} ${p.name}（${abilityShort(p)}）</option>`;
   const rotation = t.staff.rotation.map((id) => t.pitchers.find((p) => p.id === id)).filter((p): p is Player => !!p);
   const pen = t.pitchers.filter((p) => !t.staff.rotation.includes(p.id));
-  const pitchOpt = (p: Player, sel: string | null) => `<option value="${p.id}" ${sel === p.id ? 'selected' : ''}>${p.name}（${abilityShort(p)}）</option>`;
+  const pitchOpt = (p: Player, sel: string | null = null) => `<option value="${p.id}" ${sel === p.id ? 'selected' : ''}>${p.name}（${abilityShort(p)}）</option>`;
   return `<div class="card editor">
-    <label>打順の方針</label>
+    <h2>打順</h2>
+    <label>方針</label>
     <select id="lineupStyleSel">${styleOpts}</select>
-    <div class="muted" style="font-size:11px;margin-top:3px;">${styleDesc}</div>
-    <label class="check"><input type="checkbox" id="lineupManualChk" ${t.lineupManual ? 'checked' : ''}> 打順を自分で決める（▲▼で並べ替え。休養した選手の打順には控えが入ります）</label>
-
-    <label>スタメンと控えを入れ替える</label>
-    <div class="row">
-      <select id="swapStarterSel">${t.battingOrder.map((p) => opt(p, ops(p))).join('')}</select>
-      <span>⇄</span>
-      <select id="swapBenchSel">${bench.map((p) => opt(p, ops(p))).join('')}</select>
-      <button class="btn small" id="swapLineupBtn">入替</button>
-    </div>
-
-    <label>先発ローテーションと救援を入れ替える</label>
-    <div class="row">
-      <select id="swapRotSel">${rotation.map((p) => pitchOpt(p, null)).join('')}</select>
-      <span>⇄</span>
-      <select id="swapPenSel">${pen.map((p) => pitchOpt(p, null)).join('')}</select>
-      <button class="btn small" id="swapStaffBtn">入替</button>
-    </div>
-    <div class="row" style="margin-top:6px;">
-      <label style="margin:0;">抑え</label><select id="closerSel">${pen.map((p) => pitchOpt(p, t.staff.closer)).join('')}</select>
-      <label style="margin:0;">セットアッパー</label><select id="setupSel">${pen.map((p) => pitchOpt(p, t.staff.setup)).join('')}</select>
-    </div>
-    <div class="muted" style="font-size:11px;margin-top:8px;">${t.lineupManual || t.staffManual ? '手動で決めた部分は、シーズン中の自動の見直し（レギュラー・先発の入替）をしません。' : '今はすべて監督（AI）におまかせです。成績に応じてシーズン中もレギュラーや先発が入れ替わります。'}</div>
-    ${t.lineupManual || t.staffManual || t.lineupStyleLocked ? '<button class="btn secondary small" id="resetEditorBtn" style="margin-top:8px;">すべて監督におまかせに戻す</button>' : ''}
-  </div>`;
+    <div class="sub" style="margin-top:3px;">${styleDesc}</div>
+    <label class="check"><input type="checkbox" id="lineupManualChk" ${t.lineupManual ? 'checked' : ''}> 自分で並べる（「野手」タブの▲▼で並べ替え）</label>
+  </div>
+  <div class="card editor">
+    <h2>スタメンと控えの入れ替え</h2>
+    <label>スタメンから外す</label><select id="swapStarterSel">${t.battingOrder.map(batOpt).join('')}</select>
+    <label>控えから入れる</label><select id="swapBenchSel">${bench.map(batOpt).join('')}</select>
+    <button class="btn small" id="swapLineupBtn" style="margin-top:8px;">入れ替える</button>
+  </div>
+  <div class="card editor">
+    <h2>投手陣</h2>
+    <label>抑え</label><select id="closerSel">${pen.map((p) => pitchOpt(p, t.staff.closer)).join('')}</select>
+    <label>セットアッパー</label><select id="setupSel">${pen.map((p) => pitchOpt(p, t.staff.setup)).join('')}</select>
+    <label>先発から外す</label><select id="swapRotSel">${rotation.map((p) => pitchOpt(p)).join('')}</select>
+    <label>リリーフから先発に入れる</label><select id="swapPenSel">${pen.map((p) => pitchOpt(p)).join('')}</select>
+    <button class="btn small" id="swapStaffBtn" style="margin-top:8px;">入れ替える</button>
+  </div>
+  <div class="sub" style="margin:0 2px 10px;">${t.lineupManual || t.staffManual ? '自分で決めた部分は、シーズン中の自動の見直しをしません。' : 'いまは監督（AI）におまかせです。成績に応じてシーズン中もレギュラーや先発が入れ替わります。'}
+    ${t.lineupManual || t.staffManual || t.lineupStyleLocked ? '<button class="link-btn" id="resetEditorBtn">監督におまかせに戻す</button>' : ''}</div>`;
 }
 
 export function wireRosterEvents(): void {

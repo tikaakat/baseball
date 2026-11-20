@@ -16,8 +16,8 @@ export function startPostseason(): void {
   DB.postseason = {
     standings: { H, B },
     series: {
-      H1: makeSeries(H[1], H[2], 2, 0, 0, leagueName('H') + ` ${POSTSEASON_NAMES.firstStage}（2位 vs 3位・2勝先取）`),
-      B1: makeSeries(B[1], B[2], 2, 0, 0, leagueName('B') + ` ${POSTSEASON_NAMES.firstStage}（2位 vs 3位・2勝先取）`),
+      H1: makeSeries(H[1], H[2], 2, 0, 0, `${leagueName('H')} 1st（2位vs3位・2勝先取）`),
+      B1: makeSeries(B[1], B[2], 2, 0, 0, `${leagueName('B')} 1st（2位vs3位・2勝先取）`),
       H2: null, B2: null, JS: null,
     },
     champion: null,
@@ -30,10 +30,10 @@ export function progressPostseason(): void {
   if (!ps) return;
   const { H, B } = ps.standings;
   if (!ps.series.H2 && ps.series.H1.winner) {
-    ps.series.H2 = makeSeries(H[0], ps.series.H1.winner, 4, 1, 0, leagueName('H') + ` ${POSTSEASON_NAMES.finalStage}（1位に1勝のアドバンテージ・4勝先取）`);
+    ps.series.H2 = makeSeries(H[0], ps.series.H1.winner, 4, 1, 0, `${leagueName('H')} ファイナル（1位に1勝つき・4勝先取）`);
   }
   if (!ps.series.B2 && ps.series.B1.winner) {
-    ps.series.B2 = makeSeries(B[0], ps.series.B1.winner, 4, 1, 0, leagueName('B') + ` ${POSTSEASON_NAMES.finalStage}（1位に1勝のアドバンテージ・4勝先取）`);
+    ps.series.B2 = makeSeries(B[0], ps.series.B1.winner, 4, 1, 0, `${leagueName('B')} ファイナル（1位に1勝つき・4勝先取）`);
   }
   if (!ps.series.JS && ps.series.H2?.winner && ps.series.B2?.winner) {
     ps.series.JS = makeSeries(ps.series.H2.winner, ps.series.B2.winner, 4, 0, 0, `${POSTSEASON_NAMES.final}（4勝先取）`);
