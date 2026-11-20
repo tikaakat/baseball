@@ -85,6 +85,23 @@ describe('セーブデータ', () => {
     DB.teams.forEach((t) => expect(t.wins + t.losses + t.ties).toBe(144));
   });
 
+  it('旧版のバグで投手の今季成績が積み上がっていたら、読み込み時に通算へ移して今季を数え直す', () => {
+    hardResetLeague();
+    simWholeSeason();
+    const data = JSON.parse(JSON.stringify(serializeState({ myTeamId: null, liveGame: null })));
+    // 6シーズン分が積み上がった状態を再現（今季はまだ10試合）
+    data.db.teams.forEach((t: { wins: number; losses: number; ties: number; pitchers: { pStats: { g: number; gs: number; w: number }; pCareer: { w: number } }[] }) => {
+      t.wins = 6; t.losses = 4; t.ties = 0;
+      t.pitchers.forEach((p) => { p.pStats.g *= 6; p.pStats.gs *= 6; p.pStats.w *= 6; });
+    });
+    const inflatedW = data.db.teams[0].pitchers.reduce((a: number, p: { pStats: { w: number } }) => a + p.pStats.w, 0);
+    hardResetLeague();
+    restoreState(data);
+    const t = DB.teams[0];
+    t.pitchers.forEach((p) => { expect(p.pStats.gs).toBeLessThanOrEqual(10); });
+    expect(t.pitchers.reduce((a, p) => a + p.pCareer.w + p.pStats.w, 0)).toBe(inflatedW);
+  });
+
   it('形式の違うデータは拒否し、リーグを壊さない', () => {
     hardResetLeague();
     const teamsBefore = DB.teams;

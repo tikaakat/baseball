@@ -6,6 +6,7 @@
 import { LEGACY_TEAM_NAMES, TEAM_DEFS } from './data';
 import { getPlayerSeq, setPlayerSeq } from './player';
 import { allPlayersOf, upgradeTeam } from './team';
+import { accumulatePitchLine, emptyPitchLine } from './stats';
 import { DB } from './state';
 import { kvGet, kvRemove, kvSet } from './storage';
 import type { Bases, DBState, Game, Player, Postseason, Series, SeriesKey, Team } from './types';
@@ -122,6 +123,7 @@ export function restoreState(data: SaveData): { myTeamId: string | null; liveGam
     const byId = new Map(st.roster.map((p) => [p.id, p] as const));
     const t: Team = { ...st, battingOrder: st.battingOrder.map((id) => must(byId.get(id), `打順 ${id}`)) };
     upgradeTeam(t); // 旧版：控え野手・投手陣を追加
+    repairPitcherSeasonStats(t);
     // 旧版の既定チーム名（実在球団に近い名前）は、変更されていなければ新しい架空の名前にする
     const idx = Number(t.id.slice(1));
     if (LEGACY_TEAM_NAMES[idx] && t.name === LEGACY_TEAM_NAMES[idx] && TEAM_DEFS[idx]) t.name = TEAM_DEFS[idx].name;
@@ -203,4 +205,18 @@ export async function loadFromStorage(): Promise<{ myTeamId: string | null; live
 
 export async function clearSave(): Promise<void> {
   await kvRemove(SAVE_KEY);
+}
+
+/**
+ * 旧版のバグ（シーズンが替わっても投手の今季成績がリセットされなかった）で積み上がった成績を直す。
+ * チームの試合数より多く登板している投手は複数シーズン分が混ざっているので、通算へ移して今季を0から数え直す
+ */
+function repairPitcherSeasonStats(t: Team): void {
+  const teamGames = t.wins + t.losses + t.ties;
+  t.pitchers.forEach((p) => {
+    if (p.pStats.g > teamGames || p.pStats.gs > teamGames) {
+      accumulatePitchLine(p.pCareer, p.pStats);
+      p.pStats = emptyPitchLine();
+    }
+  });
 }
