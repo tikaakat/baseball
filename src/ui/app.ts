@@ -8,6 +8,7 @@ import { renderRoster, wireRosterEvents } from './roster';
 import { renderStandings, wireStandingsEvents } from './standings';
 import { $, $$, shortTeamName } from './format';
 import { showToast } from './components';
+import { playerSheetHTML } from './player';
 import { currentDay, regularSeasonComplete } from '../engine/schedule';
 import { finalizeStandings } from '../engine/standings';
 import { DB, teamById } from '../engine/state';
@@ -36,6 +37,7 @@ export function render(): void {
     ${saveErrorMessage() ? `<div class="flash">⚠ ${saveErrorMessage()}。この端末の空き容量やブラウザの設定を確認してください。</div>` : ''}
     <div class="section" id="section"></div>
     <div id="modalRoot">${modalHTML()}</div>
+    ${playerSheetHTML()}
   `;
   $$('.tabbtn').forEach((b) => {
     b.onclick = () => { UI.tab = b.dataset.tab as TabKey; UI.flash = null; render(); };

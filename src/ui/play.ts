@@ -283,7 +283,7 @@ function boxScoreHTML(game: Game): string {
     const rows = fieldersOf(game, side).map((p, i) => {
       const b = game.box[p.id] ?? { pa: 0, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, k: 0, r: 0, sb: 0 };
       const hot = b.h >= 3 || b.hr >= 1 || b.rbi >= 3;
-      return `<tr class="${hot ? 'hot' : ''}"><td>${i + 1}</td><td class="name">${p.name}<span class="muted" style="font-size:9px;">(${p.pos})</span></td><td>${b.ab}</td><td>${b.h}</td><td>${b.rbi}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.sb}</td></tr>`;
+      return `<tr class="${hot ? 'hot' : ''}"><td>${i + 1}</td><td class="name tap" data-player="${p.id}">${p.name}<span class="muted" style="font-size:9px;">(${p.pos})</span></td><td>${b.ab}</td><td>${b.h}</td><td>${b.rbi}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.sb}</td></tr>`;
     }).join('');
     return `<div class="box-team">${team.name}</div>
       <table class="compact-table box"><thead><tr><th></th><th class="namehead">選手</th><th>打</th><th>安</th><th>点</th><th>本</th><th>四</th><th>三</th><th>盗</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -294,7 +294,7 @@ function boxScoreHTML(game: Game): string {
       const b = game.pbox[id];
       if (!p || !b) return '';
       const dec = b.dec ? `<span class="pill ${b.dec === 'L' ? 'lose' : 'win'}" style="margin-left:4px;">${{ W: '勝', L: '敗', S: 'S' }[b.dec]}</span>` : '';
-      return `<tr><td class="name">${p.name}${dec}</td><td>${ipOf(b)}</td><td>${b.bf}</td><td>${b.h}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.r}</td></tr>`;
+      return `<tr><td class="name tap" data-player="${p.id}">${p.name}${dec}</td><td>${ipOf(b)}</td><td>${b.bf}</td><td>${b.h}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.r}</td></tr>`;
     }).join('');
     return `<table class="compact-table box" style="margin-top:6px;"><thead><tr><th class="namehead">投手</th><th>回</th><th>打者</th><th>安</th><th>本</th><th>四</th><th>三</th><th>失</th></tr></thead><tbody>${rows}</tbody></table>`;
   };

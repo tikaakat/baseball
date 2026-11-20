@@ -49,7 +49,7 @@ function rosterDetailHTML(teamId: string): string {
     <div class="p-row">
       <div class="p-slot">${label}</div>
       <div class="p-main">
-        <div class="p-name">${nameBadge(p, allPlayersFlat)} <span class="sub">${p.pos}・${p.age}歳・#${formatNumber(p.number)}</span>${p.ability ? ` <span class="pill" title="${ABILITY_INFO[p.ability].desc}">${ABILITY_INFO[p.ability].label}</span>` : ''}</div>
+        <div class="p-name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)} <span class="sub">${p.pos}・${p.age}歳・#${formatNumber(p.number)}</span>${p.ability ? ` <span class="pill" title="${ABILITY_INFO[p.ability].desc}">${ABILITY_INFO[p.ability].label}</span>` : ''}</div>
         <div class="p-abl">${abilityBadges(p)}</div>
       </div>
       ${extra}<button class="edit-btn icon" data-editplayer="${p.id}" aria-label="編集">✎</button>
@@ -88,11 +88,11 @@ function rosterDetailHTML(teamId: string): string {
   } else if (tab === 'stats') {
     const statRows = [...t.battingOrder, ...bench].map((p, i) => {
       const st = statMode === 'career' ? p.career : p.stats;
-      return `<tr><td>${i < 9 ? i + 1 : '控'}</td><td class="name">${nameBadge(p, allPlayersFlat)}</td><td>${fmt3(avgOfStats(st))}</td><td>${st.h}</td><td>${st.hr}</td><td>${st.rbi}</td><td>${st.sb || 0}</td><td>${fmt3plain(opsOfStats(st))}</td></tr>`;
+      return `<tr><td>${i < 9 ? i + 1 : '控'}</td><td class="name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)}</td><td>${fmt3(avgOfStats(st))}</td><td>${st.h}</td><td>${st.hr}</td><td>${st.rbi}</td><td>${st.sb || 0}</td><td>${fmt3plain(opsOfStats(st))}</td></tr>`;
     }).join('');
     const pitchRows = staffSorted.map((p) => {
       const st = statMode === 'career' ? p.pCareer : p.pStats;
-      return `<tr><td>${roleOf(p)}</td><td class="name">${nameBadge(p, allPlayersFlat)}</td><td>${st.g}</td><td>${st.w}</td><td>${st.l}</td><td>${st.sv}</td><td>${ipOf(st)}</td><td>${fmtEra(eraOf(st))}</td></tr>`;
+      return `<tr><td>${roleOf(p)}</td><td class="name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)}</td><td>${st.g}</td><td>${st.w}</td><td>${st.l}</td><td>${st.sv}</td><td>${ipOf(st)}</td><td>${fmtEra(eraOf(st))}</td></tr>`;
     }).join('');
     body = `${chips('rstat', [{ key: 'season', label: '今シーズン' }, { key: 'career', label: '通算' }], statMode)}
     <div class="card"><div class="table-scroll"><table class="compact-table">

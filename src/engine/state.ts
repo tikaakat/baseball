@@ -26,7 +26,7 @@ export function teamById(id: string): Team | undefined {
 
 export function playerById(id: string): { player: Player; team: Team } | null {
   for (const t of DB.teams) {
-    const p = t.roster.find((pp) => pp.id === id);
+    const p = t.roster.find((pp) => pp.id === id) ?? t.pitchers.find((pp) => pp.id === id); // 野手も投手も
     if (p) return { player: p, team: t };
   }
   return null;

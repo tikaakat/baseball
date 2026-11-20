@@ -37,6 +37,8 @@ export interface UIState {
   /** 名鑑・遊び方の小タブ */
   rosterTab?: string;
   howtoTab?: string;
+  /** 詳細シートを開いている選手 */
+  playerSheet?: string | null;
 }
 
 export const UI: UIState = {

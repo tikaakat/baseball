@@ -57,7 +57,11 @@ export interface Player {
   psPStats: PitchLine;
   /** 投手のみ：最近登板した日（連投管理用） */
   recentDays?: number[];
+  /** 年度別の成績（シーズンが終わるたびに追加） */
+  yearly?: YearLine[];
 }
+
+export interface YearLine { season: number; team: string; age: number; stats: StatLine; pStats: PitchLine }
 
 export interface ManagerEffects {
   statMult?: { power: number; contact: number; speed: number };

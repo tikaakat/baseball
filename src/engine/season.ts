@@ -40,7 +40,7 @@ export function startNewSeason(): void {
     reviewRegulars(t); // 今季の成績をもとに、レギュラーと打順を見直す
 
     t.wins = 0; t.losses = 0; t.ties = 0; t.runsFor = 0; t.runsAgainst = 0;
-    t.roster.forEach((p) => resetPlayerForNewSeason(p));
+    [...t.roster, ...t.pitchers].forEach((p) => resetPlayerForNewSeason(p, t.name)); // 野手も投手も
     allRetired = allRetired.concat(retireVeterans(t));
     if (!t.staffManual) assignStaffRoles(t); // 能力の変化に合わせて投手の役割を決め直す
     t.rotationIdx = 0;

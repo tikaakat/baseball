@@ -25,7 +25,7 @@ const TARGETS: Record<string, [number, number]> = {
   leadEra: [1.0, 2.4],        // 最優秀防御率 1.5〜2.2
   worstQualEra: [3.6, 5.6],   // 規定投球回に達した中で最も悪い防御率
   leadW: [11, 21],            // 最多勝 13〜17
-  leadSv: [25, 55],           // 最多セーブ 30〜45
+  leadSv: [25, 47],           // 最多セーブ 35〜43
   leadK: [130, 230],          // 最多奪三振 150〜200
   spIpPerStart: [5.3, 6.8],   // 先発1試合あたりの投球回 約6回
 };

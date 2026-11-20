@@ -50,6 +50,30 @@ describe('補強ガチャ', () => {
   });
 });
 
+describe('シーズン移行', () => {
+  it('野手も投手も今季の成績がリセットされて通算と年度別に移り、1歳年を取る', () => {
+    hardResetLeague();
+    simWholeSeason();
+    autoCompletePostseason();
+    const p = DB.teams[0].pitchers.find((x) => x.pStats.outs > 0)!;
+    const b = DB.teams[0].battingOrder[0];
+    const before = { outs: p.pStats.outs, age: p.age, h: b.stats.h };
+    startNewSeason();
+    for (const x of [p, b]) {
+      if (!DB.teams[0].pitchers.includes(x) && !DB.teams[0].roster.includes(x)) continue; // 引退した場合
+      expect(x.pStats.outs).toBe(0);
+      expect(x.stats.pa).toBe(0);
+      expect(x.yearly?.length).toBe(1);
+    }
+    if (DB.teams[0].pitchers.includes(p)) {
+      expect(p.pCareer.outs).toBe(before.outs);
+      expect(p.age).toBe(before.age + 1);
+      expect(p.yearly![0].pStats.outs).toBe(before.outs);
+    }
+    if (DB.teams[0].roster.includes(b)) expect(b.yearly![0].stats.h).toBe(before.h);
+  });
+});
+
 describe('日程', () => {
   it('毎日すべての球団が1試合ずつ、144日。同一リーグ各24試合（ホーム12）、交流戦各4試合', () => {
     hardResetLeague();

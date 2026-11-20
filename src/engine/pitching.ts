@@ -73,12 +73,26 @@ export function pickStarter(team: Team): Player {
   return p;
 }
 
-/** 救援として使えるか（この試合で未登板、かつ3連投にならない） */
+/** 救援として使えるか（この試合で未登板、3連投にならず、直近4日で3登板していない。抑え・セットアッパーは連投を控えめに） */
 export function isRelieverAvailable(game: Game, side: Side, p: Player): boolean {
   if (game.pitchersUsed[side].includes(p.id)) return false;
   if (game[side].staff.rotation.includes(p.id)) return false;
   const days = p.recentDays ?? [];
-  return !(days.includes(game.dayKey - 1) && days.includes(game.dayKey - 2));
+  // 3連投はしない。直近4日で3試合投げていたら休ませる（現実のブルペン運用に近づける）
+  if (days.includes(game.dayKey - 1) && days.includes(game.dayKey - 2)) return false;
+  const last4 = days.filter((d) => d >= game.dayKey - 4 && d < game.dayKey).length;
+  if (last4 >= 3) return false;
+  // 抑え・セットアッパーは、前日に投げていたら4割ほどの日は休ませる（その日は他の投手が9回を任される）
+  const isKey = p.id === game[side].staff.closer || p.id === game[side].staff.setup;
+  if (isKey && days.includes(game.dayKey - 1) && dailyCoin(p.id, game.dayKey) < 0.4) return false;
+  return true;
+}
+
+/** 選手と日付から決まる 0〜1 の値（同じ日の判断がぶれないように乱数ではなく決め打ち） */
+function dailyCoin(id: string, day: number): number {
+  let h = day * 2654435761;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 2246822519);
+  return ((h >>> 0) % 1000) / 1000;
 }
 
 export function availableRelievers(game: Game, side: Side): Player[] {

@@ -4,6 +4,7 @@ import { loadFromStorage } from './engine/save';
 import { hardResetLeague } from './engine/season';
 import { render } from './ui/app';
 import { installSaveOnExit } from './ui/persist';
+import { installPlayerSheetHandler } from './ui/player';
 import { UI } from './ui/state';
 
 async function start(): Promise<void> {
@@ -15,6 +16,7 @@ async function start(): Promise<void> {
     hardResetLeague();
   }
   installSaveOnExit();
+  installPlayerSheetHandler();
   render();
   registerServiceWorker();
   loadAnalytics();

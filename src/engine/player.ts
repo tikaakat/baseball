@@ -112,7 +112,11 @@ export function performanceScore(p: Player): number {
   return (frac(p.power) + frac(p.contact) + frac(p.speed)) / 3;
 }
 
-export function resetPlayerForNewSeason(p: Player): void {
+export function resetPlayerForNewSeason(p: Player, teamName = ''): void {
+  // 年度別の成績を残す（出場したシーズンだけ）
+  if (p.stats.pa > 0 || p.pStats.bf > 0) {
+    (p.yearly ??= []).push({ season: DB.currentSeasonNum || 1, team: teamName, age: p.age, stats: { ...p.stats }, pStats: { ...p.pStats } });
+  }
   accumulateStatLine(p.career, p.stats);
   p.stats = emptyStatLine();
   p.psStats = emptyStatLine();
