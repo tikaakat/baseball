@@ -4,7 +4,7 @@ export interface SegItem { key: string; label: string }
 
 /** 小タブ（画面の中を切り替える。data-seg="名前:キー"） */
 export function segTabs(name: string, items: SegItem[], active: string): string {
-  return `<div class="seg" role="tablist">${items
+  return `<div class="segtabs" role="tablist">${items
     .map((it) => `<button role="tab" class="${it.key === active ? 'active' : ''}" data-seg="${name}:${it.key}">${it.label}</button>`)
     .join('')}</div>`;
 }

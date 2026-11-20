@@ -443,9 +443,9 @@ select[data-gachaselect]{
 .appbar .ctx{font-size:10.5px;color:var(--dim);text-align:right;line-height:1.35;min-width:0;}
 .appbar .ctx b{color:var(--cream);}
 .section{padding-top:10px;}
-.seg{display:flex;background:var(--graphite);border-radius:10px;padding:3px;gap:2px;margin-bottom:10px;}
-.seg button{flex:1;background:none;border:none;color:var(--dim);font-size:12.5px;font-weight:700;padding:7px 4px;border-radius:8px;cursor:pointer;white-space:nowrap;}
-.seg button.active{background:var(--pencil);color:#2a1e04;}
+.segtabs{display:flex;background:var(--graphite);border-radius:10px;padding:3px;gap:2px;margin-bottom:10px;}
+.segtabs button{flex:1;background:none;border:none;color:var(--dim);font-size:12.5px;font-weight:700;padding:7px 4px;border-radius:8px;cursor:pointer;white-space:nowrap;}
+.segtabs button.active{background:var(--pencil);color:#2a1e04;}
 .chips{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin-bottom:10px;padding-bottom:2px;}
 .chips::-webkit-scrollbar{display:none;}
 .chips button{flex:0 0 auto;background:var(--panel-light);color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:5px 11px;font-size:12px;cursor:pointer;white-space:nowrap;}

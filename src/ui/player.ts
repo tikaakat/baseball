@@ -59,7 +59,9 @@ function pencilMini(p: Player): string {
   const [p1, p2] = pencilSummary(pencilsFor(p, null));
   const bar = (label: string, segs: { key: string; label: string; pct: number }[]) => `
     <div class="pencil-bar-row"><div class="pencil-bar-label">${label}</div><div class="pencil-bar">${segs.map((x) => `<div class="seg seg-${x.key}" style="flex:${x.pct}" title="${x.label} ${Math.round(x.pct)}%">${x.pct >= x.label.length * 4.5 + 5 ? `${x.label}<small>${Math.round(x.pct)}%</small>` : x.pct >= 6 ? `<small>${Math.round(x.pct)}%</small>` : ''}</div>`).join('')}</div></div>`;
-  return `<div class="pencil-bars">${bar('1本目', p1)}${bar('2本目', p2)}<div class="sub" style="font-size:10px;">平均的な投手と対戦したときの鉛筆</div></div>`;
+  const legend = [['hit', 'ヒット・2ベース'], ['walk', '四球'], ['otto', 'おっと'], ['hr', 'HR'], ['k', '三振'], ['out', '凡打']]
+    .map(([k, l]) => `<span><i class="seg-${k}"></i>${l}</span>`).join('');
+  return `<div class="pencil-bars">${bar('1本目', p1)}${bar('2本目', p2)}<div class="pencil-legend">${legend}</div><div class="sub" style="font-size:10px;">平均的な投手と対戦したときの鉛筆</div></div>`;
 }
 
 export function playerSheetHTML(): string {
