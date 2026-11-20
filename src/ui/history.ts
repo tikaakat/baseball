@@ -5,6 +5,7 @@ import { DB, leagueName, teamById } from '../engine/state';
 import { avgOfStats, eraOf, opsOfStats } from '../engine/stats';
 import type { AwardSummary, Awards, PitchLine, SeasonRecord, StandingRecord, StatLine } from '../engine/types';
 import { render, renderSection } from './app';
+import { managerName } from '../engine/team';
 import { chips, onPick, segTabs, showToast } from './components';
 import { fmt3, fmt3plain, fmtEra } from './format';
 import { newsRow } from './news';
@@ -32,7 +33,8 @@ function seasonTabHTML(history: SeasonRecord[]): string {
   }
   const seasons = history.slice().sort((a, b) => b.seasonNum - a.seasonNum);
   const sel = seasons.find((s) => s.seasonNum === UI.historySeason) ?? seasons[0];
-  const picker = chips('hseason', seasons.map((s) => ({ key: String(s.seasonNum), label: `第${s.seasonNum}季${s.championTeamId === UI.myTeamId ? '🏆' : ''}` })), String(sel.seasonNum));
+  const opts = seasons.map((s) => `<option value="${s.seasonNum}" ${s === sel ? 'selected' : ''}>第${s.seasonNum}シーズン　${s.champion ? `優勝：${s.champion}` : ''}${s.championTeamId === UI.myTeamId ? ' 🏆' : ''}</option>`).join('');
+  const picker = `<select id="seasonSel" class="season-select" aria-label="シーズンを選ぶ">${opts}</select>`;
   return picker + seasonDetailHTML(sel);
 }
 
@@ -161,8 +163,8 @@ function teamsTabHTML(history: SeasonRecord[]): string {
 
   const managers: { team: string; teamId: string; label: string; w: number; l: number; current: boolean }[] = [];
   DB.teams.forEach((t) => {
-    (t.managerHistory || []).forEach((m) => managers.push({ team: t.name, teamId: t.id, label: m.label, w: m.wins || 0, l: m.losses || 0, current: false }));
-    if (t.manager) managers.push({ team: t.name, teamId: t.id, label: t.manager.label, w: t.manager.wins || 0, l: t.manager.losses || 0, current: true });
+    (t.managerHistory || []).forEach((m) => managers.push({ team: t.name, teamId: t.id, label: `${managerName(m)}<span class="sub">・${m.label}・第${m.hireSeason}〜${m.leftSeason ?? ''}季</span>`, w: m.wins || 0, l: m.losses || 0, current: false }));
+    if (t.manager) managers.push({ team: t.name, teamId: t.id, label: `${managerName(t.manager)}<span class="sub">・${t.manager.label}・第${t.manager.hireSeason}季〜</span>`, w: t.manager.wins || 0, l: t.manager.losses || 0, current: true });
   });
   const mgrRows = managers.filter((m) => m.w + m.l > 0).sort((a, b) => b.w - a.w).slice(0, 12)
     .map((m) => `<div class="list-row ${m.teamId === UI.myTeamId ? 'mine' : ''}"><span>${m.label}<span class="sub">（${m.team}${m.current ? '・現職' : ''}）</span></span><span class="sub">${m.w}勝${m.l}敗</span></div>`).join('');
@@ -200,7 +202,8 @@ export function renderHistory(): string {
 
 export function wireHistoryEvents(): void {
   onPick('seg', 'htab', (k) => { UI.historyTab = k; render(); });
-  onPick('chip', 'hseason', (k) => { UI.historySeason = Number(k); render(); });
+  const seasonSel = document.querySelector<HTMLSelectElement>('#seasonSel');
+  if (seasonSel) seasonSel.onchange = () => { UI.historySeason = Number(seasonSel.value); render(); };
   onPick('chip', 'alltime', (k) => { UI.allTimeCat = k; render(); });
   onPick('chip', 'newsf', (k) => { UI.newsFilter = k; render(); });
   document.querySelectorAll<HTMLElement>('[data-share-season]').forEach((b) => {

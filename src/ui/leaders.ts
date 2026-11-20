@@ -63,7 +63,7 @@ export function renderLeaders(): string {
   ${chips('lcat', cats.map((c) => ({ key: c.key, label: c.label })), cat.key)}
   ${chips('lleague', [...(UI.myTeamId ? [{ key: 'MINE', label: 'マイチーム全員' }] : []), { key: 'ALL', label: '両リーグ' }, { key: LEAGUE_CODES[0], label: leagueName(LEAGUE_CODES[0]) }, { key: LEAGUE_CODES[1], label: leagueName(LEAGUE_CODES[1]) }], league)}
   <div class="card">
-    <div class="sub" style="font-size:10.5px;margin-bottom:2px;">選手をタップすると詳しい成績を表示</div>
+    <div class="sub" style="font-size:10.5px;margin-bottom:2px;">行をタップすると詳しい成績を表示</div>
     ${cat.qualified && !mineOnly ? `<div class="muted" style="font-size:11px;margin-bottom:4px;">${pitch ? '規定投球回（チーム試合数×1回）' : '規定打席（チーム試合数×3.1）'}以上が対象</div>` : ''}
     ${rows || '<div class="muted">まだ対象の選手がいません。試合を進めましょう。</div>'}
   </div>`;

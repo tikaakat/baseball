@@ -282,7 +282,7 @@ function boxScoreHTML(game: Game): string {
     const rows = fieldersOf(game, side).map((p, i) => {
       const b = game.box[p.id] ?? { pa: 0, ab: 0, h: 0, hr: 0, rbi: 0, bb: 0, k: 0, r: 0, sb: 0 };
       const hot = b.h >= 3 || b.hr >= 1 || b.rbi >= 3;
-      return `<tr class="${hot ? 'hot' : ''}"><td>${i + 1}</td><td class="name tap" data-player="${p.id}">${p.name}<span class="muted" style="font-size:9px;">(${p.pos})</span></td><td>${b.ab}</td><td>${b.h}</td><td>${b.rbi}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.sb}</td></tr>`;
+      return `<tr class="tap ${hot ? 'hot' : ''}" data-player="${p.id}"><td>${i + 1}</td><td class="name">${p.name}<span class="muted" style="font-size:9px;">(${p.pos})</span></td><td>${b.ab}</td><td>${b.h}</td><td>${b.rbi}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.sb}</td></tr>`;
     }).join('');
     return `<div class="box-team">${team.name}</div>
       <table class="compact-table box"><thead><tr><th></th><th class="namehead">選手</th><th>打</th><th>安</th><th>点</th><th>本</th><th>四</th><th>三</th><th>盗</th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -293,7 +293,7 @@ function boxScoreHTML(game: Game): string {
       const b = game.pbox[id];
       if (!p || !b) return '';
       const dec = b.dec ? `<span class="pill ${b.dec === 'L' ? 'lose' : 'win'}" style="margin-left:4px;">${{ W: '勝', L: '敗', S: 'S' }[b.dec]}</span>` : '';
-      return `<tr><td class="name tap" data-player="${p.id}">${p.name}${dec}</td><td>${ipOf(b)}</td><td>${b.bf}</td><td>${b.h}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.r}</td></tr>`;
+      return `<tr class="tap" data-player="${p.id}"><td class="name">${p.name}${dec}</td><td>${ipOf(b)}</td><td>${b.bf}</td><td>${b.h}</td><td>${b.hr}</td><td>${b.bb}</td><td>${b.k}</td><td>${b.r}</td></tr>`;
     }).join('');
     return `<table class="compact-table box" style="margin-top:6px;"><thead><tr><th class="namehead">投手</th><th>回</th><th>打者</th><th>安</th><th>本</th><th>四</th><th>三</th><th>失</th></tr></thead><tbody>${rows}</tbody></table>`;
   };
@@ -522,7 +522,7 @@ function confirmNewSeason(): void {
       const myChange = UI.myTeamId ? changes.find((c) => c.team === teamById(UI.myTeamId!)!.name) : null;
       let managerNote = '';
       if (changes.length > 0) {
-        if (myChange) managerNote = `　⚾自チームの監督が交代：${myChange.from || '新規'}→${myChange.to}（${myChange.reason}）。他${changes.length - 1}球団でも監督交代あり。`;
+        if (myChange) managerNote = `　新監督に${myChange.to}氏が就任（${myChange.from ? `${myChange.from}氏は${myChange.reason}` : '新規'}）。`;
         else managerNote = `　${changes.length}球団で監督交代がありました。`;
       }
       UI.flash = `前シーズンの成績を球団史に記録し、新シーズンを開始しました。${retiredCount > 0 ? `（ベテラン${retiredCount}名が引退し、新人と入れ替わりました）` : ''}${managerNote}`;

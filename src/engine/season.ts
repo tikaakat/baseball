@@ -6,7 +6,8 @@ import { emptyPitchLine, emptyStatLine } from './stats';
 import { finalizeStandings } from './standings';
 import { DB } from './state';
 import { reviewRegulars } from './lineup';
-import { assignStaffRoles, createTeams, hireNewManager, retireVeterans } from './team';
+import { assignStaffRoles, createTeams, hireNewManager, managerName, retireVeterans } from './team';
+import { addNews } from './news';
 import type { ManagerChange, Player, Team } from './types';
 
 /** 完全リセット：チーム名・選手も含めて全てを新規生成する */
@@ -45,17 +46,20 @@ export function startNewSeason(): void {
     if (!t.staffManual) assignStaffRoles(t); // 能力の変化に合わせて投手の役割を決め直す
     t.rotationIdx = 0;
 
-    if (t.manager) t.manager.tenureYears--;
-    const shouldReplace = !t.manager || t.manager.tenureYears <= 0 || t.consecutiveBClass >= 3;
+    if (t.manager) { t.manager.tenureYears--; t.manager.age = (t.manager.age ?? 50) + 1; }
+    const retiring = !!t.manager && (t.manager.age ?? 0) >= 70;
+    const shouldReplace = !t.manager || t.manager.tenureYears <= 0 || t.consecutiveBClass >= 3 || retiring;
     if (shouldReplace) {
-      const oldLabel = t.manager ? t.manager.label : null;
-      const reason = t.manager && t.manager.tenureYears <= 0 ? '任期満了' : (t.consecutiveBClass >= 3 ? `Bクラス${t.consecutiveBClass}年連続` : '新規就任');
+      const oldLabel = t.manager ? managerName(t.manager) : null;
+      const reason = t.consecutiveBClass >= 3 ? `Bクラス${t.consecutiveBClass}年連続で解任` : retiring ? '高齢のため勇退' : t.manager ? '任期満了で退任' : '新規就任';
       if (t.manager) {
         if (!t.managerHistory) t.managerHistory = [];
         t.managerHistory.push({ ...t.manager, leftSeason: DB.currentSeasonNum || 1 });
       }
       hireNewManager(t);
-      managerChanges.push({ team: t.name, from: oldLabel, to: t.manager!.label, reason });
+      const m = t.manager!;
+      managerChanges.push({ team: t.name, from: oldLabel, to: managerName(m), reason });
+      addNews(`🧢 ${t.name}の新監督に${managerName(m)}氏（${m.age}歳${m.obNote ? `・球団OB ${m.obNote}` : ''}）が就任。采配は「${m.label}」。${oldLabel ? `前任の${oldLabel}氏は${reason}。` : ''}`, 'title', t.id, null);
       t.consecutiveBClass = 0; // 新監督で心機一転
     }
   });

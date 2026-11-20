@@ -79,6 +79,12 @@ export interface ManagerType extends ManagerEffects {
 
 /** チームに就任中の監督。効果は type（MANAGER_TYPES の key）から managerEffects() で引く */
 export interface Manager {
+  /** 監督の名前・年齢（旧版の保存データには無いので読み込み時に補う） */
+  name?: string;
+  given?: string;
+  age?: number;
+  /** 球団OBの監督なら、選手時代の通算成績の要約 */
+  obNote?: string;
   type: string;
   label: string;
   desc: string;
@@ -93,6 +99,7 @@ export interface Manager {
 
 export interface Alumnus {
   name: string;
+  given?: string;
   pos: string;
   age: number;
   seasonsPlayed: number;

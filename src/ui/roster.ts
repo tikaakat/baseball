@@ -4,7 +4,7 @@ import { DB, leagueName, teamById } from '../engine/state';
 import { avgOfStats, eraOf, ipOf, opsOfStats } from '../engine/stats';
 import { LINEUP_STYLES, type LineupStyleKey } from '../engine/data';
 import { lineupStyleLabel, orderByStyle, reviewRegulars, styleForManager } from '../engine/lineup';
-import { assignStaffRoles } from '../engine/team';
+import { assignStaffRoles, managerName } from '../engine/team';
 import type { Player, Team } from '../engine/types';
 import { render } from './app';
 import { $, $$, abilityBadges, abilityShort, fmt3, fmt3plain, fmtEra, formatNumber, nameBadge } from './format';
@@ -44,13 +44,13 @@ function rosterDetailHTML(teamId: string): string {
 
   /** 1人1行のコンパクトな選手表示 */
   const row = (p: Player, label: string, extra = '') => `
-    <div class="p-row">
+    <div class="p-row tap" data-player="${p.id}">
       <div class="p-slot">${label}</div>
       <div class="p-main">
-        <div class="p-name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)} <span class="sub">${p.pos}・${p.age}歳・#${formatNumber(p.number)}</span>${p.ability ? ` <span class="pill" title="${ABILITY_INFO[p.ability].desc}">${ABILITY_INFO[p.ability].label}</span>` : ''}</div>
+        <div class="p-name">${nameBadge(p, allPlayersFlat)} <span class="sub">${p.pos}・${p.age}歳・#${formatNumber(p.number)}</span>${p.ability ? ` <span class="pill" title="${ABILITY_INFO[p.ability].desc}">${ABILITY_INFO[p.ability].label}</span>` : ''}</div>
         <div class="p-abl">${abilityBadges(p)}</div>
       </div>
-      ${extra}<span class="chev" data-player="${p.id}">›</span>
+      ${extra}<span class="chev">›</span>
     </div>`;
 
   const moveBtns = (p: Player, i: number) => (isMine && t.lineupManual
@@ -86,11 +86,11 @@ function rosterDetailHTML(teamId: string): string {
   } else if (tab === 'stats') {
     const statRows = [...t.battingOrder, ...bench].map((p, i) => {
       const st = statMode === 'career' ? p.career : p.stats;
-      return `<tr><td>${i < 9 ? i + 1 : '控'}</td><td class="name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)}</td><td>${fmt3(avgOfStats(st))}</td><td>${st.hr}</td><td>${st.rbi}</td><td>${fmt3plain(opsOfStats(st))}</td></tr>`;
+      return `<tr class="tap" data-player="${p.id}"><td>${i < 9 ? i + 1 : '控'}</td><td class="name">${nameBadge(p, allPlayersFlat)}</td><td>${fmt3(avgOfStats(st))}</td><td>${st.hr}</td><td>${st.rbi}</td><td>${fmt3plain(opsOfStats(st))}</td></tr>`;
     }).join('');
     const pitchRows = staffSorted.map((p) => {
       const st = statMode === 'career' ? p.pCareer : p.pStats;
-      return `<tr><td>${roleOf(p)}</td><td class="name tap" data-player="${p.id}">${nameBadge(p, allPlayersFlat)}</td><td>${st.w}-${st.l}</td><td>${st.sv}</td><td>${ipOf(st)}</td><td>${fmtEra(eraOf(st))}</td></tr>`;
+      return `<tr class="tap" data-player="${p.id}"><td>${roleOf(p)}</td><td class="name">${nameBadge(p, allPlayersFlat)}</td><td>${st.w}-${st.l}</td><td>${st.sv}</td><td>${ipOf(st)}</td><td>${fmtEra(eraOf(st))}</td></tr>`;
     }).join('');
     body = `${chips('rstat', [{ key: 'season', label: '今シーズン' }, { key: 'career', label: '通算' }], statMode)}
     <div class="card"><table class="compact-table fit">
@@ -99,7 +99,7 @@ function rosterDetailHTML(teamId: string): string {
     <div class="card"><table class="compact-table fit">
       <thead><tr><th></th><th class="namehead">投手</th><th>勝敗</th><th>S</th><th>回</th><th>防御率</th></tr></thead><tbody>${pitchRows}</tbody>
     </table></div>
-    <div class="sub" style="text-align:center;">選手名をタップすると詳しい成績を表示</div>`;
+    <div class="sub" style="text-align:center;">行をタップすると詳しい成績を表示</div>`;
   } else if (tab === 'edit') {
     body = isMine ? myTeamEditorHTML(t) : `<div class="card"><div class="list-row"><span class="sub">打順の方針</span><span>${lineupStyleLabel(t.lineupStyle)}</span></div>
       <div class="muted" style="font-size:11px;margin-top:6px;">他球団の打順・継投は、監督の采配タイプに沿ってAIが決めています。</div></div>`;
@@ -117,7 +117,8 @@ function rosterDetailHTML(teamId: string): string {
     </div>
     <div class="team-name">${t.name}${isMine ? ' <span class="pill">マイチーム</span>' : ''}</div>
     <div class="sub">${leagueName(t.league)}・${t.wins}勝${t.losses}敗${t.ties}分・得点${t.runsFor}／失点${t.runsAgainst}</div>
-    ${t.manager ? `<div class="sub" style="margin-top:2px;">監督：${t.manager.label}<span class="muted">（${t.manager.desc}）</span></div>` : ''}
+    ${t.manager ? `<div class="sub" style="margin-top:2px;">監督：<b style="color:var(--cream);">${managerName(t.manager)}</b>（${t.manager.age ?? '-'}歳・${(DB.currentSeasonNum || 1) - t.manager.hireSeason + 1}年目${t.manager.obNote ? '・球団OB' : ''}）通算${t.manager.wins}勝${t.manager.losses}敗</div>
+    <div class="sub">采配：${t.manager.label}<span class="muted">（${t.manager.desc}）</span></div>` : ''}
     ${(t.retiredNumbers ?? []).length ? `<div class="sub" style="margin-top:2px;">永久欠番：${t.retiredNumbers!.map((r) => `${String(r.number).padStart(2, '0')} ${r.name}`).join('、')}</div>` : ''}
   </div>
   ${segTabs('rtab', tabs, tab)}

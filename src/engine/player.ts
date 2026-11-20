@@ -139,7 +139,7 @@ export function retirePlayer(team: Team, player: Player): void {
   accumulatePitchLine(pCareer, player.pStats);
   if (!team.alumni) team.alumni = [];
   team.alumni.push({
-    name: player.name, pos: player.pos, age: player.age,
+    name: player.name, given: player.given, pos: player.pos, age: player.age,
     isPitcher: !!player.pitch, pCareer,
     seasonsPlayed: (player.seasonsPlayed || 0) + (player.stats.pa > 0 || player.pStats.bf > 0 ? 1 : 0),
     debutSeason: player.debutSeason || 1, lastSeason: DB.currentSeasonNum || 1,

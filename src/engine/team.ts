@@ -114,6 +114,11 @@ export function upgradeTeam(t: Team): void {
   }
   t.rotationIdx ??= 0;
   if (!t.staff) assignStaffRoles(t);
+  // 旧版の監督には名前・年齢がないので補う
+  if (t.manager && !t.manager.name) {
+    const id = pickPlayerIdentity([]);
+    t.manager.name = id.surname; t.manager.given = id.given; t.manager.age = randInt(45, 60);
+  }
 }
 
 /** 打順が決まった後に、打順のタイプに合った特殊能力を割り振る */
@@ -146,14 +151,34 @@ export function managerEffects(m: Manager | null | undefined): ManagerEffects {
   return (m && MANAGER_TYPES.find((t) => t.key === m.type)) || {};
 }
 
+/**
+ * 新しい監督を迎える。半分くらいの確率で、球団の名選手OB（いま40〜65歳）から選ぶ
+ */
 export function hireNewManager(team: Team): void {
   const type = choice(MANAGER_TYPES);
   if (!team.lineupStyleLocked) team.lineupStyle = styleForManager(type.key);
+  const season = DB.currentSeasonNum || 1;
+  const usedNames = DB.teams.map((t) => t.manager?.name).filter((n): n is string => !!n);
+  const obs = (team.alumni ?? [])
+    .map((a) => ({ a, age: a.age + (season - a.lastSeason) }))
+    .filter(({ a, age }) => age >= 40 && age <= 65 && a.seasonsPlayed >= 8 && !usedNames.includes(a.name));
+  const ob = obs.length && Math.random() < 0.5 ? choice(obs) : null;
+  const id = pickPlayerIdentity(usedNames);
   team.manager = {
+    name: ob ? ob.a.name : id.surname,
+    given: ob ? (ob.a.given ?? '') : id.given,
+    age: ob ? ob.age : randInt(42, 62),
+    obNote: ob ? (ob.a.isPitcher && ob.a.pCareer ? `通算${ob.a.pCareer.w}勝${ob.a.pCareer.sv}S` : `通算${ob.a.career.h}安打${ob.a.career.hr}本塁打`) : undefined,
     type: type.key, label: type.label, desc: type.desc,
-    hireSeason: DB.currentSeasonNum || 1, tenureYears: randInt(3, 30),
+    hireSeason: season, tenureYears: randInt(3, 12),
     wins: 0, losses: 0, ties: 0, careerGames: 0,
   };
+}
+
+/** 監督の呼び名（例：佐藤一郎監督） */
+export function managerName(m: Manager | null | undefined): string {
+  if (!m) return '-';
+  return m.name ? `${m.name}${m.given ?? ''}` : m.label;
 }
 
 export function createTeams(): Team[] {

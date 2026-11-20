@@ -558,3 +558,7 @@ table.fit td,table.fit th{padding:6px 3px;white-space:nowrap;}
 table.fit td.name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px;}
 .editor h2{margin-bottom:4px;}
 .editor select{width:100%;}
+
+.p-row.tap:active,tr.tap:active td,.rank-row.tap:active{background:rgba(242,182,50,.08);}
+tr.tap{cursor:pointer;}
+.season-select{width:100%;margin-bottom:10px;font-size:14px;padding:8px;}
