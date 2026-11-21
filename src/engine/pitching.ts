@@ -116,8 +116,8 @@ export function availableRelievers(game: Game, side: Side): Player[] {
 /**
  * AIの継投判断（打席の前に呼ぶ）。交代するなら新しい投手を返す。
  * - 先発：疲れたら（疲れずに投げられる打者数＋数人）、または大量失点で降板
- * - 9回にリード1〜3点なら抑え、8回にリード1〜3点で先発が疲れていればセットアッパー
- * - 救援が疲れたら次の救援へ
+ * - 9回にリード1〜3点（後攻なら同点も）で抑え、8回にリード1〜3点か同点でセットアッパー
+ * - 救援が疲れたら次の救援へ。接戦の中継ぎは1イニングで交代
  */
 export function aiPitchingChoice(game: Game): Player | null {
   const side = fieldingSide(game);
@@ -134,20 +134,29 @@ export function aiPitchingChoice(game: Game): Player | null {
   const setup = avail.find((p) => p.id === team.staff.setup);
   const saveSituation = lead >= 1 && lead <= 3;
 
-  if (inningStart && game.inning >= 9 && saveSituation && closer && cur.id !== team.staff.closer) return closer;
-  if (inningStart && game.inning === 8 && saveSituation && setup && cur.id !== team.staff.setup && cur.id !== team.staff.closer && (!asStarter || box.bf >= cap - 4)) return setup;
+  // 抑え：9回以降のセーブ機会。後攻チームは同点の9回以降も（サヨナラ負けを防ぐ）
+  const tieAtHome = lead === 0 && side === 'home';
+  if (inningStart && game.inning >= 9 && (saveSituation || tieAtHome) && closer && cur.id !== team.staff.closer) return closer;
+  // セットアッパー：8回にリード1〜3点か同点
+  if (inningStart && game.inning === 8 && (saveSituation || lead === 0) && setup && cur.id !== team.staff.setup && cur.id !== team.staff.closer && (!asStarter || box.bf >= cap - 4)) return setup;
 
   const pull = asStarter ? pitchingStyleFor(team.manager?.type).starterPullAdj : 0; // 監督の継投方針
   const tired = asStarter
     ? box.bf >= cap + 3 + pull || (box.bf >= cap + pull && (game.bases.second || game.bases.third)) || box.r >= 5
     : box.bf >= cap + 2 || box.r >= 4;
-  if (!tired) return null;
+  // 接戦の中継ぎは1イニングずつ（大差なら長いイニングを任せる）
+  const oneInningDone = !asStarter && inningStart && box.outs >= 3 && Math.abs(lead) <= 4;
+  if (!tired && !oneInningDone) return null;
   // 中継ぎ（抑え・セットアッパーは温存）から、質の高い順に
   const middle = avail.filter((p) => p.id !== team.staff.closer && p.id !== team.staff.setup);
-  const pool = middle.length ? middle : avail;
+  const pool = middle.length ? middle : tired ? avail : [];
   if (!pool.length) return null;
-  // 前日も投げた投手はなるべく避ける（登板を分散）
-  const score = (p: Player) => quality(p) - ((p.recentDays ?? []).includes(game.dayKey - 1) ? 80 : 0);
+  // 前日も投げた投手・最近よく投げている投手はなるべく避ける（登板を分散）
+  const recent = (p: Player) => (p.recentDays ?? []).filter((d) => d >= game.dayKey - 5 && d < game.dayKey).length;
+  const rest = (p: Player) => ((p.recentDays ?? []).includes(game.dayKey - 1) ? 80 : 0) + recent(p) * 25;
+  // 接戦は良い投手から、大差（5点以上）は格下の投手に任せる
+  const blowout = Math.abs(lead) >= 5;
+  const score = (p: Player) => (blowout ? -quality(p) : quality(p)) - rest(p);
   return pool.slice().sort((a, b) => score(b) - score(a))[0];
 }
 const quality = (p: Player) => (p.pitch ? p.pitch.stuff * 0.5 + p.pitch.control * 0.4 + p.pitch.stamina * 0.1 : 0);

@@ -13,7 +13,12 @@ const ROSTER_KEEP_SEASONS = 30;
 function teamRosters(): Record<string, TeamSeasonRoster> {
   const out: Record<string, TeamSeasonRoster> = {};
   DB.teams.forEach((t) => {
-    const roleOf = (id: string) => { const i = t.staff.rotation.indexOf(id); return i >= 0 ? `先${i + 1}` : id === t.staff.closer ? '抑え' : id === t.staff.setup ? '中継' : '救援'; };
+    // 役割はシーズンの登板内容で（途中で先発から外れた投手も「先発」と表示する）
+    const roleOf = (p: Team['pitchers'][number]) => {
+      const s = p.pStats;
+      if (s.gs > 0 && s.gs * 2 >= s.g) return '先発';
+      return p.id === t.staff.closer ? '抑え' : p.id === t.staff.setup ? '中継' : '救援';
+    };
     out[t.id] = {
       name: t.name,
       b: t.roster.filter((p) => p.stats.pa > 0).map((p): BatRow => {
@@ -22,7 +27,7 @@ function teamRosters(): Record<string, TeamSeasonRoster> {
       }),
       p: t.pitchers.filter((p) => p.pStats.g > 0).map((p): PitRow => {
         const s = p.pStats;
-        return [p.name, roleOf(p.id), s.g, s.gs, s.w, s.l, s.sv, s.outs, s.r, s.k];
+        return [p.name, roleOf(p), s.g, s.gs, s.w, s.l, s.sv, s.outs, s.r, s.k];
       }),
     };
   });
