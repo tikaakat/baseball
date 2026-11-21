@@ -280,10 +280,10 @@ function boardDeskHTML(batter: Player, game: Game): string {
   const last = game.lastPlay?.board ?? null;
   return `
     ${boardGridHTML(boardFor(batter, game), { batterName: batter.name, pitcherName: pitcher?.name ?? '投手' })}
-    <div class="pencil-desk">
-      ${pencil3dHTML('pencilA', NUM_PENCIL, last ? last.a - 1 : null, { color: 'yellow', label: '打者' })}
-      ${pencil3dHTML('pencilB', NUM_PENCIL, last ? last.b - 1 : null, { color: 'blue', label: '投手' })}
-      <div id="pencilCWrap" class="${last?.c ? '' : 'hidden'}">${pencil3dHTML('pencilC', NUM_PENCIL, last?.c ? last.c - 1 : null, { color: 'green', label: '3本目' })}</div>
+    <div class="pencil-desk row">
+      ${pencil3dHTML('pencilA', NUM_PENCIL, last ? last.a - 1 : null, { color: 'yellow', label: '打者', small: true })}
+      ${pencil3dHTML('pencilB', NUM_PENCIL, last ? last.b - 1 : null, { color: 'blue', label: '投手', small: true })}
+      ${pencil3dHTML('pencilC', NUM_PENCIL, last?.c ? last.c - 1 : null, { color: 'green', label: '3本目', small: true, dim: !last?.c })}
     </div>`;
 }
 
@@ -367,7 +367,7 @@ function playScreenHTML(game: Game): string {
   }
 
   return `
-  <div class="card play-card">
+  <div class="card play-card ${isBoard(game) ? 'board-mode' : ''}">
     ${scoreboard}
     <div class="field-row">
       <div class="diamond">
@@ -500,7 +500,6 @@ async function animateBoardRoll(res: ReturnType<typeof rollStep>): Promise<void>
     await Promise.all([rollPencil3d($('#pencilA'), bd.a - 1, 680), rollPencil3d($('#pencilB'), bd.b - 1, 740)]);
     $(`[data-cell="${bd.a}-${bd.b}"]`)?.classList.add('on');
     if (bd.c) {
-      $('#pencilCWrap')?.classList.remove('hidden');
       await rollPencil3d($('#pencilC'), bd.c - 1, 560);
     }
     await new Promise((r) => setTimeout(r, 350)); // 止まったマスを見せてから次の打者へ

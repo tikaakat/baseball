@@ -599,3 +599,41 @@ tr.tap{cursor:pointer;}
 .board-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:3px;vertical-align:-1px;}
 #pencilCWrap.hidden{display:none;}
 .pencil-bar .seg.r-single,.pencil-bar .seg.r-double,.pencil-bar .seg.r-hr,.pencil-bar .seg.r-walk,.pencil-bar .seg.r-k,.pencil-bar .seg.r-groundout,.pencil-bar .seg.r-flyout{color:#1d2a20;}
+
+/* 対戦表方式の試合画面：スマホ1画面に収まるように詰める */
+.play-card.board-mode{padding-top:8px;}
+.play-card.board-mode .scoreboard{padding:4px 10px;margin:0 0 5px;border-width:1.5px;}
+.play-card.board-mode .sb-team .sc{font-size:20px;line-height:1.1;}
+.play-card.board-mode .sb-team .nm{font-size:10px;}
+.play-card.board-mode .sb-inning{font-size:12px;}
+.play-card.board-mode .sb-outs{margin-top:2px;}
+.play-card.board-mode .linescore{margin-bottom:5px;}
+.play-card.board-mode .linescore th,.play-card.board-mode .linescore td{padding:2px 1px;}
+.play-card.board-mode .field-row{margin:2px 0;gap:8px;}
+.play-card.board-mode .field-row .diamond{width:60px;height:60px;}
+.play-card.board-mode .field-row .base{width:12px;height:12px;}
+.play-card.board-mode .field-row #b-second{margin-left:-6px;}
+.play-card.board-mode .field-row #b-first,.play-card.board-mode .field-row #b-third{margin-top:-6px;}
+.play-card.board-mode .field-row #b-home{width:11px;height:11px;margin-left:-5px;}
+.play-card.board-mode .field-row .batter-card{padding:5px 8px;}
+.play-card.board-mode .batter-card .stats{line-height:1.45;margin-top:1px;}
+.play-card.board-mode .board-wrap{margin:4px 0 0;}
+.play-card.board-mode .board-title{margin-bottom:2px;}
+.play-card.board-mode .board-grid{gap:2px;max-width:none;grid-template-columns:20px repeat(6,1fr);}
+.play-card.board-mode .bd-cell{height:24px;font-size:9.5px;border-radius:4px;}
+.play-card.board-mode .bd-cell .split{font-size:7.5px;line-height:1.05;}
+.play-card.board-mode .bd-cell small{font-size:6.5px;}
+.play-card.board-mode .board-legend{margin-top:3px;gap:1px 7px;font-size:9px;}
+.play-card.board-mode .play-note{min-height:0;margin:0;}
+.pencil-desk.row{flex-direction:row;gap:6px;margin:4px 0 0;}
+.p3d.sm{flex:1;min-width:0;flex-direction:column;align-items:stretch;gap:0;--p3d-fh:14px;--p3d-r:12.12px;}
+.p3d.sm .p3d-name{width:auto;text-align:left;font-size:9.5px;}
+.p3d.sm .p3d-stage{height:34px;}
+.p3d.sm .p3d-pencil{height:28px;}
+.p3d.sm .p3d-body{height:28px;}
+.p3d.sm .p3d-end{width:12px;height:24px;border-radius:5px 1px 1px 5px;}
+.p3d.sm .p3d-tip{width:18px;height:24px;}
+.p3d.sm .p3d-face{font-size:11px;}
+.p3d.sm .p3d-light{top:2px;bottom:2px;}
+.p3d.sm .p3d-shadow{height:6px;}
+.roll-dock .roll-btn{padding:11px 24px;}

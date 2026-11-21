@@ -9,14 +9,14 @@ export type PencilColor = 'yellow' | 'blue' | 'red' | 'green';
 const STEP = 60; // 1面あたりの角度
 
 /** 鉛筆のHTML。shown 番目の面が手前を向いた状態で描く（null なら止まっていない＝どの面も強調しない） */
-export function pencil3dHTML(id: string, faces: PencilFace[], shown: number | null, opts: { color?: PencilColor; dim?: boolean; label?: string } = {}): string {
+export function pencil3dHTML(id: string, faces: PencilFace[], shown: number | null, opts: { color?: PencilColor; dim?: boolean; label?: string; small?: boolean } = {}): string {
   const rest = shown ?? 0;
   const faceHtml = faces.map((f, i) => `
     <div class="p3d-face ${shown === i ? 'up' : ''}" style="transform:rotateX(${i * STEP}deg) translateZ(var(--p3d-r));">
       ${f.tone ? `<i class="p3d-dot seg-${f.tone}"></i>` : ''}<span>${f.label}</span>
     </div>`).join('');
   return `
-  <div class="p3d ${opts.dim ? 'dim' : ''}" id="${id}" data-color="${opts.color ?? 'yellow'}" data-angle="${-rest * STEP}">
+  <div class="p3d ${opts.dim ? 'dim' : ''} ${opts.small ? 'sm' : ''}" id="${id}" data-color="${opts.color ?? 'yellow'}" data-angle="${-rest * STEP}">
     ${opts.label ? `<div class="p3d-name">${opts.label}</div>` : ''}
     <div class="p3d-stage">
       <div class="p3d-shadow"></div>

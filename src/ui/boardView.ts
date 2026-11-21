@@ -39,7 +39,7 @@ export function boardGridHTML(board: { batter: Cell[]; pitcher: Cell[] }, opts: 
   <div class="board-wrap">
     <div class="board-title"><span class="bt-batter">■ ${opts.batterName}の表</span>（打者の数≧投手）<span class="bt-vs"></span><span class="bt-pitcher">■ ${opts.pitcherName}の表</span>（投手の数が大）</div>
     <div class="board-grid">${head}${rows}</div>
-    <div class="board-legend">${ORDER.map((r) => `<span><i class="r-${r}"></i>${RESULT_SHORT[r]}</span>`).join('')}<span><i class="r-split"></i>2色のマス＝3本目の数で決める</span></div>
+    <div class="board-legend">${ORDER.map((r) => `<span><i class="r-${r}"></i>${RESULT_SHORT[r]}</span>`).join('')}<span><i class="r-split"></i>2色＝3本目で決定</span></div>
   </div>`;
 }
 
