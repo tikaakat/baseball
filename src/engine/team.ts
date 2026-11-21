@@ -305,3 +305,27 @@ export function retireVeterans(t: Team): { team: Team; out: Player; in: Player }
   });
   return retiredList;
 }
+
+type PitcherRole = { kind: 'rot'; i: number } | { kind: 'closer' } | { kind: 'setup' } | { kind: 'pen' };
+function pitcherRole(t: Team, id: string): PitcherRole {
+  const i = t.staff.rotation.indexOf(id);
+  if (i >= 0) return { kind: 'rot', i };
+  if (t.staff.closer === id) return { kind: 'closer' };
+  if (t.staff.setup === id) return { kind: 'setup' };
+  return { kind: 'pen' };
+}
+function setPitcherRole(t: Team, id: string, r: PitcherRole): void {
+  if (r.kind === 'rot') t.staff.rotation[r.i] = id;
+  else if (r.kind === 'closer') t.staff.closer = id;
+  else if (r.kind === 'setup') t.staff.setup = id;
+}
+/** 投手2人の役割（先発◯番手・抑え・セットアッパー・中継ぎ）を入れ替える */
+export function swapPitcherRoles(t: Team, aId: string, bId: string): boolean {
+  if (aId === bId || !t.pitchers.some((p) => p.id === aId) || !t.pitchers.some((p) => p.id === bId)) return false;
+  const ra = pitcherRole(t, aId), rb = pitcherRole(t, bId);
+  if (ra.kind === 'pen' && rb.kind === 'pen') return false;
+  setPitcherRole(t, aId, rb);
+  setPitcherRole(t, bId, ra);
+  t.staffManual = true;
+  return true;
+}

@@ -1,9 +1,8 @@
 /* モーダル（埋め込み環境では alert/confirm/prompt が使えないため自前で用意） */
-import { ABILITY_INFO, ABILITY_KEYS, DEFAULT_LEAGUE_NAMES, GRADE_MID } from '../engine/data';
+import { DEFAULT_LEAGUE_NAMES } from '../engine/data';
 import { DB, leagueName, playerById, teamById } from '../engine/state';
-import type { AbilityKey } from '../engine/types';
 import { render } from './app';
-import { $, escapeAttr, gradeOf, sanitizeText } from './format';
+import { $, escapeAttr, sanitizeText } from './format';
 import { UI } from './state';
 
 export function openEditTeamModal(teamId: string): void {
@@ -27,17 +26,6 @@ export function openConfirmModal(message: string, onConfirm: () => void): void {
   render();
 }
 
-function gradeSelectHTML(id: string, current: number): string {
-  const currentGrade = gradeOf(current);
-  const opts = ['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((g) => `<option value="${g}" ${g === currentGrade ? 'selected' : ''}>${g}</option>`).join('');
-  return `<select id="${id}">${opts}</select>`;
-}
-function abilitySelectHTML(current: string): string {
-  const opts = ['<option value="">なし</option>'].concat(
-    ABILITY_KEYS.map((k) => `<option value="${k}" ${k === current ? 'selected' : ''}>${ABILITY_INFO[k].label}</option>`),
-  ).join('');
-  return `<select id="editPlayerAbility">${opts}</select>`;
-}
 function buttons(okId: string, okLabel: string): string {
   return `<div class="row" style="justify-content:flex-end;margin-top:14px;">
         <button class="btn secondary small" id="modalCancel">キャンセル</button>
@@ -70,19 +58,9 @@ export function modalHTML(): string {
       ${buttons('modalSave', '保存')}`;
       break;
     case 'editPlayer':
-      inner = `<h2>選手を編集</h2>
+      inner = `<h2>選手名を変更</h2>
       <label>選手名</label>
       <input type="text" id="editPlayerName" value="${escapeAttr(m.name)}" maxlength="12">
-      <label>年齢</label>
-      <input type="text" id="editPlayerAge" value="${escapeAttr(String(m.age))}" maxlength="3">
-      ${m.pitch ? `
-      <label>球威</label>${gradeSelectHTML('editPitchStuff', m.pitch.stuff)}
-      <label>制球</label>${gradeSelectHTML('editPitchControl', m.pitch.control)}
-      <label>スタミナ</label>${gradeSelectHTML('editPitchStamina', m.pitch.stamina)}` : `
-      <label>パワー</label>${gradeSelectHTML('editPlayerPower', m.power)}
-      <label>ミート</label>${gradeSelectHTML('editPlayerContact', m.contact)}
-      <label>走力</label>${gradeSelectHTML('editPlayerSpeed', m.speed)}
-      <label>特殊能力</label>${abilitySelectHTML(m.ability)}`}
       ${buttons('modalSave', '保存')}`;
       break;
   }
@@ -133,19 +111,6 @@ export function wireModalEvents(): void {
         const p = found.player;
         const newName = sanitizeText(inputValue('#editPlayerName') ?? '', 12);
         if (newName) p.name = newName;
-        const ageStr = inputValue('#editPlayerAge');
-        if (ageStr !== null) { const a = parseInt(ageStr, 10); if (a >= 15 && a <= 50) p.age = a; }
-        const grade = (sel: string) => GRADE_MID[inputValue(sel) ?? ''];
-        if (p.pitch) {
-          if (grade('#editPitchStuff')) p.pitch.stuff = grade('#editPitchStuff');
-          if (grade('#editPitchControl')) p.pitch.control = grade('#editPitchControl');
-          if (grade('#editPitchStamina')) p.pitch.stamina = grade('#editPitchStamina');
-        }
-        if (grade('#editPlayerPower')) p.power = grade('#editPlayerPower');
-        if (grade('#editPlayerContact')) p.contact = grade('#editPlayerContact');
-        if (grade('#editPlayerSpeed')) p.speed = grade('#editPlayerSpeed');
-        const ability = inputValue('#editPlayerAbility');
-        if (ability !== null) p.ability = ability ? (ability as AbilityKey) : null;
       }
     }
     close();

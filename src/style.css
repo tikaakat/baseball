@@ -637,3 +637,25 @@ tr.tap{cursor:pointer;}
 .p3d.sm .p3d-light{top:2px;bottom:2px;}
 .p3d.sm .p3d-shadow{height:6px;}
 .roll-dock .roll-btn{padding:11px 24px;}
+
+/* 名鑑：監督の方針・オーダー（パワプロ風の入れ替え）・成績のシーズン選択 */
+.policy h2{margin-bottom:4px;}
+.policy-row{display:flex;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line);font-size:12.5px;}
+.policy-row:last-of-type{border-bottom:none;}
+.policy-row .k{flex:0 0 34px;color:var(--dim);font-size:11px;padding-top:1px;}
+.policy-row small{display:block;color:var(--dim);font-size:10.5px;margin-top:1px;}
+.order-hint{position:sticky;top:0;z-index:5;margin:0 0 8px;padding:8px 12px;border-radius:10px;font-size:12px;
+  background:var(--panel-light);color:var(--dim);text-align:center;}
+.order-hint.on{background:var(--pencil);color:#2a1e04;}
+.order-hint .link-btn{margin-left:8px;color:#2a1e04;text-decoration:underline;}
+.order-editor{padding:8px 10px;}
+.o-row{display:flex;align-items:center;gap:8px;padding:7px 6px;border-radius:8px;border:1.5px solid transparent;margin:2px 0;}
+.o-row + .o-row{border-top-color:transparent;}
+.o-num{flex:0 0 18px;text-align:center;font-weight:900;color:var(--pencil);font-size:13px;}
+.o-pos{flex:0 0 32px;text-align:center;font-size:11px;font-weight:800;background:var(--graphite);color:var(--cream);border-radius:5px;padding:2px 0;}
+.o-name{flex:1;min-width:0;font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.o-abl{flex:0 0 auto;font-size:10px;}
+.o-row.picked{background:rgba(242,182,50,.22);border-color:var(--pencil);}
+.o-row.target{border-color:rgba(242,182,50,.35);border-style:dashed;}
+.stat-pick{display:flex;align-items:center;gap:10px;padding:8px 12px;}
+.stat-pick select{flex:1;}

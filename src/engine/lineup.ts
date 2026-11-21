@@ -124,6 +124,23 @@ export function reviewRegulars(team: Team): void {
   team.battingOrder = orderByStyle(team.battingOrder, team.lineupStyle ?? 'traditional');
 }
 
+/** 打順で選手を入れ替える（パワプロ風：2人を選んで交換）。スタメン同士は打順を、控えとならスタメンと守備位置ごと交換 */
+export function swapBatters(team: Team, aId: string, bId: string): boolean {
+  const a = team.roster.find((p) => p.id === aId), b = team.roster.find((p) => p.id === bId);
+  if (!a || !b || a === b) return false;
+  const ia = team.battingOrder.indexOf(a), ib = team.battingOrder.indexOf(b);
+  if (ia < 0 && ib < 0) return false; // 控え同士は入れ替える意味がない
+  if (ia >= 0 && ib >= 0) {
+    [team.battingOrder[ia], team.battingOrder[ib]] = [b, a];
+  } else {
+    const [starter, bench, i] = ia >= 0 ? [a, b, ia] : [b, a, ib];
+    team.battingOrder[i] = bench;
+    const pos = starter.pos; starter.pos = bench.pos; bench.pos = pos; // 控えの選手がその守備位置に就く
+  }
+  team.lineupManual = true;
+  return true;
+}
+
 /** 監督の采配タイプから、打順の方針を決める */
 export function styleForManager(managerType: string | undefined): LineupStyleKey {
   if (managerType === 'speedball' || managerType === 'aggressive' || managerType === 'youthful') return 'speed';

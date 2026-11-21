@@ -350,4 +350,10 @@ export interface SeasonRecord {
   pitchingLeaders?: { era: LeaderEntry[]; w: LeaderEntry[]; sv: LeaderEntry[]; k: LeaderEntry[] };
   /** リーグ最優秀投手（規定投球回以上で防御率最良） */
   bestPitcher?: { H: PitcherAwardSummary | null; B: PitcherAwardSummary | null };
+  /** 各球団の選手成績（名鑑で過去のシーズンを見る用。古いシーズンの分は容量のため削る） */
+  rosters?: Record<string, TeamSeasonRoster>;
 }
+/** 野手：[名前, 守備, 打席, 打数, 安打, 二塁打, 三塁打, 本塁打, 打点, 四球, 盗塁]／投手：[名前, 役割, 登板, 先発, 勝, 敗, S, アウト数, 失点, 奪三振] */
+export type BatRow = [string, string, number, number, number, number, number, number, number, number, number];
+export type PitRow = [string, string, number, number, number, number, number, number, number, number];
+export interface TeamSeasonRoster { name: string; b: BatRow[]; p: PitRow[] }

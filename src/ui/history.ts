@@ -14,7 +14,7 @@ import { UI } from './state';
 
 type HistoryTab = 'season' | 'records' | 'teams' | 'news';
 
-function ensureHistoryLoaded(): void {
+export function ensureHistoryLoaded(): void {
   if (UI.seasonHistoryLoading) return;
   UI.seasonHistoryLoading = true;
   loadSeasonHistory()
@@ -23,6 +23,7 @@ function ensureHistoryLoaded(): void {
     .finally(() => {
       UI.seasonHistoryLoading = false;
       if (UI.tab === 'history') renderSection();
+      else if (UI.tab === 'roster') render();
     });
 }
 

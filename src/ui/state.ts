@@ -18,7 +18,10 @@ export interface UIState {
   leaderMode: 'bat' | 'pitch';
   pitchLeaderCat: string;
   rosterTeamId: string | null;
-  rosterStatMode: 'season' | 'career';
+  /** 名鑑の成績：'season' | 'career' | 'y<シーズン番号>' */
+  rosterStatMode: string;
+  /** オーダー画面で1人目に選んだ選手 */
+  orderPick?: string | null;
   rolling: boolean;
   myTeamId: string | null;
   modal: Modal | null;

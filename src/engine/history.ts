@@ -4,10 +4,30 @@ import { onSeasonArchived } from './news';
 import { finalizeStandings } from './standings';
 import { DB, leagueName } from './state';
 import { kvGet, kvRemove, kvSet } from './storage';
-import type { SeasonRecord, Team } from './types';
+import type { BatRow, PitRow, SeasonRecord, Team, TeamSeasonRoster } from './types';
 import { sleep } from './util';
 
 const HISTORY_KEY = 'season-history';
+const ROSTER_KEEP_SEASONS = 30;
+
+function teamRosters(): Record<string, TeamSeasonRoster> {
+  const out: Record<string, TeamSeasonRoster> = {};
+  DB.teams.forEach((t) => {
+    const roleOf = (id: string) => { const i = t.staff.rotation.indexOf(id); return i >= 0 ? `先${i + 1}` : id === t.staff.closer ? '抑え' : id === t.staff.setup ? '中継' : '救援'; };
+    out[t.id] = {
+      name: t.name,
+      b: t.roster.filter((p) => p.stats.pa > 0).map((p): BatRow => {
+        const s = p.stats;
+        return [p.name, p.pos, s.pa, s.ab, s.h, s.doubles, s.triples, s.hr, s.rbi, s.bb, s.sb];
+      }),
+      p: t.pitchers.filter((p) => p.pStats.g > 0).map((p): PitRow => {
+        const s = p.pStats;
+        return [p.name, roleOf(p.id), s.g, s.gs, s.w, s.l, s.sv, s.outs, s.r, s.k];
+      }),
+    };
+  });
+  return out;
+}
 
 export async function loadSeasonHistory(): Promise<SeasonRecord[]> {
   try {
@@ -72,8 +92,11 @@ export async function archiveCurrentSeason(): Promise<SeasonRecord> {
     goldenGlove: computeGoldenGlove(),
     pitchingLeaders: computePitchingLeaders(),
     bestPitcher: computeBestPitcher(),
+    rosters: teamRosters(),
   };
   history.push(record);
+  // 選手成績は直近の分だけ残す（保存容量のため）
+  history.slice(0, Math.max(0, history.length - ROSTER_KEEP_SEASONS)).forEach((h) => { delete h.rosters; });
   onSeasonArchived(record.champion, [
     record.mvp.H && `${record.leagueNames.H} MVPは${record.mvp.H.team}の${record.mvp.H.name}`,
     record.mvp.B && `${record.leagueNames.B} MVPは${record.mvp.B.team}の${record.mvp.B.name}`,

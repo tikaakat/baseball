@@ -92,7 +92,7 @@ export function playerSheetHTML(): string {
       <div class="section-title">年度別</div>
       <div class="table-scroll">${yearlyTable(p, team)}</div>
       ${awards ? `<div class="section-title">受賞歴</div><div class="sub">${awards}</div>` : ''}
-      <div class="row" style="margin-top:12px;"><button class="btn secondary small" data-sheet-edit="${p.id}">✎ 能力・名前を編集</button></div>
+      <div class="row" style="margin-top:12px;"><button class="btn secondary small" data-sheet-edit="${p.id}">✎ 名前を変更</button></div>
     </div>
   </div>`;
 }

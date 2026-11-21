@@ -146,7 +146,7 @@ function scheduleHTML(): string {
   return `
   ${shareHtml}
   <div class="card today-card">
-    <div class="row between"><span class="muted">第${today.day}日 / 全${lastDay(DB.schedule)}日</span><button class="link-btn" id="editLineupBtn">⚙ 編成</button></div>
+    <div class="row between"><span class="muted">第${today.day}日 / 全${lastDay(DB.schedule)}日</span><button class="link-btn" id="editLineupBtn">⚙ オーダー</button></div>
     <div class="today-vs">${vsLabel(today)}</div>
     <div class="starters">
       <div><span class="muted">先発</span> ${starterLine(myStarter)}</div>

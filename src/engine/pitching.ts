@@ -7,6 +7,20 @@ import { DB } from './state';
 import type { Game, Player, Side, Team } from './types';
 import { frac } from './util';
 
+/** 監督の采配タイプから、継投の方針を決める（先発をどこまで引っ張るか） */
+export interface PitchingStyle { key: 'complete' | 'standard' | 'bullpen'; label: string; desc: string; starterPullAdj: number }
+export const PITCHING_STYLES: Record<PitchingStyle['key'], PitchingStyle> = {
+  complete: { key: 'complete', label: '先発完投型', desc: '先発を長く引っ張る。完投が増えるが、終盤に捕まることも', starterPullAdj: 3 },
+  standard: { key: 'standard', label: '標準', desc: '先発が疲れたら中継ぎへ。8回セットアッパー、9回抑え', starterPullAdj: 0 },
+  bullpen: { key: 'bullpen', label: '継投重視', desc: '先発を早めに降ろし、リリーフ陣でつなぐ', starterPullAdj: -3 },
+};
+export function pitchingStyleFor(managerType: string | undefined): PitchingStyle {
+  if (managerType === 'oldschool' || managerType === 'star' || managerType === 'power') return PITCHING_STYLES.complete;
+  if (managerType === 'defense' || managerType === 'realistic' || managerType === 'patient') return PITCHING_STYLES.bullpen;
+  return PITCHING_STYLES.standard;
+}
+
+
 export const otherSide = (s: Side): Side => (s === 'home' ? 'away' : 'home');
 /** 守っている側 */
 export const fieldingSide = (game: Game): Side => (game.half === 'top' ? 'home' : 'away');
@@ -123,8 +137,9 @@ export function aiPitchingChoice(game: Game): Player | null {
   if (inningStart && game.inning >= 9 && saveSituation && closer && cur.id !== team.staff.closer) return closer;
   if (inningStart && game.inning === 8 && saveSituation && setup && cur.id !== team.staff.setup && cur.id !== team.staff.closer && (!asStarter || box.bf >= cap - 4)) return setup;
 
+  const pull = asStarter ? pitchingStyleFor(team.manager?.type).starterPullAdj : 0; // 監督の継投方針
   const tired = asStarter
-    ? box.bf >= cap + 3 || (box.bf >= cap && (game.bases.second || game.bases.third)) || box.r >= 5
+    ? box.bf >= cap + 3 + pull || (box.bf >= cap + pull && (game.bases.second || game.bases.third)) || box.r >= 5
     : box.bf >= cap + 2 || box.r >= 4;
   if (!tired) return null;
   // 中継ぎ（抑え・セットアッパーは温存）から、質の高い順に
