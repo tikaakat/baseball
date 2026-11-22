@@ -12,7 +12,8 @@ import { startNewSeason } from '../engine/season';
 import { DB, leagueName, teamById } from '../engine/state';
 import { eraOf, ipOf, opsOf } from '../engine/stats';
 import { gachaCandidates, gachaSwapAllTeams, worstPerformer } from '../engine/team';
-import type { GachaResult, Game, Player, ScheduleGame, Series, SeriesKey } from '../engine/types';
+import type { GachaResult, Game, Player, ScheduleGame, Series, SeriesKey, Team } from '../engine/types';
+import { finalizeStandings } from '../engine/standings';
 import { render } from './app';
 import { $, $$, abilityBadges, abilityShort, fmt3plain, fmtEra, gradeBadge, gradeOf, shortTeamName } from './format';
 import { openConfirmModal } from './modal';
@@ -129,7 +130,11 @@ function scheduleHTML(): string {
       <div class="row" style="gap:6px;"><button class="btn small" data-share="last">📤 シェア</button><button class="btn secondary small" id="closeShareBtn">✕</button></div>
     </div>` : '';
 
-  if (!today) return shareHtml + offseasonHTML() + gachaResultsHTML();
+  const stage = currentStage();
+  if (!today || stage !== 'regular') {
+    const body = stage === 'seasonEnd' ? seasonEndHTML() : stage === 'postseason' ? postseasonStageHTML() : offseasonStageHTML(stage);
+    return seasonStepperHTML(stage) + shareHtml + body;
+  }
 
   const myStarter = probableStarter(UI.myTeamId);
   const oppId = today.home === UI.myTeamId ? today.away : today.home;
@@ -144,6 +149,7 @@ function scheduleHTML(): string {
   const upcoming = unplayed.slice(1, 4).map((g) => `<div class="list-row"><span><span class="sub">${g.day}日</span> ${shortVs(g)}</span></div>`).join('');
 
   return `
+  ${seasonStepperHTML('regular')}
   ${shareHtml}
   <div class="card today-card">
     <div class="row between"><span class="muted">第${today.day}日 / 全${lastDay(DB.schedule)}日</span><button class="link-btn" id="editLineupBtn">⚙ オーダー</button></div>
@@ -169,26 +175,118 @@ function scheduleHTML(): string {
   `;
 }
 
-/** レギュラーシーズン終了後：①ポストシーズン ②補強ガチャ ③新しいシーズン の順に進める */
-function offseasonHTML(): string {
+/* ---------- シーズンの流れ（レギュラーシーズン → ポストシーズン → オフ → 次のシーズン） ---------- */
+type Stage = 'regular' | 'seasonEnd' | 'postseason' | 'offseason' | 'ready';
+function currentStage(): Stage {
+  if (!seasonDone()) return 'regular';
   const ps = DB.postseason;
-  const psDone = !!ps?.champion;
-  const step = (n: number, title: string, state: 'done' | 'now' | 'todo', body: string) => `
-    <div class="step ${state}"><div class="step-no">${state === 'done' ? '✓' : n}</div><div class="step-body"><div class="step-title">${title}</div>${state === 'todo' ? '' : body}</div></div>`;
-  const psBody = psDone
-    ? `<div class="muted">${POSTSEASON_NAMES.final} 優勝：<b style="color:var(--pencil);">${ps!.champion!.name}</b></div>`
-    : `<div class="row">${ps ? '' : '<button class="btn small" id="startPostseasonBtn">1試合ずつ進める</button>'}<button class="btn ${ps ? 'small' : 'secondary small'}" id="simPostseasonBtn">残りを自動で消化</button></div>`;
-  const newSeasonBody = `<button class="btn small" id="newSeasonBtn">第${DB.currentSeasonNum + 1}シーズンを始める</button>
-    <div class="muted" style="font-size:11px;margin-top:4px;">今シーズンの成績を球団史に記録してから始めます</div>`;
+  if (!ps) return 'seasonEnd';
+  if (!ps.champion) return 'postseason';
+  return DB.gachaDoneThisCycle ? 'ready' : 'offseason';
+}
+
+/** 画面上部の進み具合（いまどこにいて、次に何があるか） */
+function seasonStepperHTML(stage: Stage): string {
+  const order: Stage[] = ['regular', 'postseason', 'offseason', 'ready'];
+  const at = order.indexOf(stage === 'seasonEnd' ? 'postseason' : stage);
+  const day = currentDay(DB.schedule);
+  const labels = [
+    stage === 'regular' && day ? `シーズン ${day}/${lastDay(DB.schedule)}日` : 'レギュラーシーズン',
+    'ポストシーズン', 'オフ・補強', `第${DB.currentSeasonNum + 1}季へ`,
+  ];
+  return `<div class="season-stepper">${labels.map((l, i) => `<div class="ss-item ${i < at ? 'done' : i === at ? 'now' : ''}"><span class="ss-dot">${i < at ? '✓' : i + 1}</span><span class="ss-label">${l}</span></div>`).join('')}</div>`;
+}
+
+const skipToNextHTML = (label = 'ここから先はおまかせで、次のシーズンへ') =>
+  `<div class="skip-line"><button class="link-btn" id="newSeasonBtn2">${label}</button></div>`;
+
+/** マイチームの最終順位とポストシーズン進出 */
+function myFinish(): { team: Team; rank: number; league: string; qualified: boolean } | null {
+  if (!UI.myTeamId) return null;
+  const st = DB.postseason?.standings ?? finalizeStandings();
+  for (const [code, list] of [['H', st.H], ['B', st.B]] as const) {
+    const i = list.findIndex((t) => t.id === UI.myTeamId);
+    if (i >= 0) return { team: list[i], rank: i + 1, league: leagueName(code === 'H' ? LEAGUE_CODES[0] : LEAGUE_CODES[1]), qualified: i < 3 };
+  }
+  return null;
+}
+
+/** レギュラーシーズンが終わった直後：結果のまとめと、ポストシーズンへの入口 */
+function seasonEndHTML(): string {
+  const me = myFinish();
+  const st = finalizeStandings();
+  const top3 = (list: Team[], code: string) => `<div><div class="section-title" style="margin-top:0;">${leagueName(code)}</div>${list.slice(0, 3).map((t, i) =>
+    `<div class="list-row ${t.id === UI.myTeamId ? 'mine' : ''}"><span><b>${i + 1}位</b> ${shortTeamName(t.name)}</span><span class="sub">${t.wins}-${t.losses}</span></div>`).join('')}</div>`;
+  const headline = me
+    ? `<div class="se-team">${me.team.name}</div>
+       <div class="se-record">${me.team.wins}勝${me.team.losses}敗${me.team.ties}分・${me.league} <b>${me.rank}位</b></div>
+       <div class="se-msg ${me.qualified ? 'good' : ''}">${me.qualified ? (me.rank === 1 ? '🏆 リーグ優勝！ファイナルから登場します' : `🎉 ${me.rank}位でプレーオフ進出！`) : 'プレーオフ進出ならず…来季に期待'}</div>`
+    : '';
+  const actions = me?.qualified
+    ? `<button class="btn play-btn" id="startPostseasonBtn">▶ プレーオフを観る</button>
+       <div class="row today-sub"><button class="link-btn" id="simPostseasonBtn">結果だけ見る（自動で消化）</button></div>`
+    : `<button class="btn play-btn" id="simPostseasonBtn">ポストシーズンの結果を見る</button>
+       <div class="row today-sub"><button class="link-btn" id="startPostseasonBtn">1試合ずつ観る</button></div>`;
+  return `<div class="card season-end">
+    <div class="muted" style="font-size:12px;">第${DB.currentSeasonNum}季 レギュラーシーズン終了</div>
+    ${headline}
+    <div class="two-col" style="margin:10px 0 6px;">${top3(st.H, LEAGUE_CODES[0])}${top3(st.B, LEAGUE_CODES[1])}</div>
+    <div class="sub" style="margin-bottom:8px;">各リーグ上位3チームがプレーオフへ。勝ち上がった2チームが${POSTSEASON_NAMES.final}で日本一を争います。</div>
+    ${actions}
+    ${skipToNextHTML()}
+  </div>`;
+}
+
+/** ポストシーズン中：マイチームのシリーズを先頭に */
+function postseasonStageHTML(): string {
+  progressPostseason();
+  const ps = DB.postseason!;
+  const mineFirst = SERIES_KEYS.slice().sort((a, b) => {
+    const has = (k: SeriesKey) => { const s = ps.series[k]; return s && !s.winner && (s.teamA.id === UI.myTeamId || s.teamB.id === UI.myTeamId) ? 0 : 1; };
+    return has(a) - has(b);
+  });
   return `<div class="card">
-    <h2>シーズン終了 — オフの手続き</h2>
-    ${step(1, 'ポストシーズン', psDone ? 'done' : 'now', psBody)}
-    ${step(2, '補強ガチャ', DB.gachaDoneThisCycle ? 'done' : psDone ? 'now' : 'todo', gachaStepHTML())}
-    ${step(3, '新しいシーズン', psDone && DB.gachaDoneThisCycle ? 'now' : 'todo', newSeasonBody)}
-    ${psDone && !DB.gachaDoneThisCycle ? '<div class="muted" style="font-size:11px;margin-top:6px;">ガチャを引かずに新しいシーズンを始めると、全球団おまかせで入れ替えます。<button class="link-btn" id="newSeasonBtn2">このまま始める</button></div>' : ''}
+    <div class="row between"><h2 style="margin:0;">ポストシーズン</h2><button class="btn small secondary" id="simPostseasonBtn">残りを自動で消化</button></div>
   </div>
-  ${ps && !psDone ? postseasonSectionHTML() : ''}
-  ${psDone ? `<details class="howto"><summary>ポストシーズンの結果</summary>${postseasonSectionHTML()}</details>` : ''}`;
+  ${mineFirst.map((key) => seriesCard(key, ps.series[key])).join('')}
+  ${skipToNextHTML()}`;
+}
+
+/** マイチームのポストシーズンの結果（一言） */
+function myPostseasonNote(): string {
+  const ps = DB.postseason;
+  if (!ps?.champion || !UI.myTeamId) return '';
+  if (ps.champion.id === UI.myTeamId) return '🎉 マイチームが日本一！';
+  const lost = SERIES_KEYS.map((k) => ps.series[k]).find((s) => s?.winner && (s.teamA.id === UI.myTeamId || s.teamB.id === UI.myTeamId) && s.winner.id !== UI.myTeamId);
+  return lost ? `マイチームは${lost.label.split('（')[0]}で敗退` : '';
+}
+
+/** ポストシーズン後：補強ガチャ（オフ）と次のシーズン */
+function offseasonStageHTML(stage: Stage): string {
+  const ps = DB.postseason!;
+  const note = myPostseasonNote();
+  const champ = `<div class="card champ-card">
+      <div class="muted" style="font-size:12px;">第${DB.currentSeasonNum}季 ${POSTSEASON_NAMES.final}</div>
+      <div class="champ-name">🏆 ${ps.champion!.name}</div>
+      ${note ? `<div class="sub">${note}</div>` : ''}
+      <details class="howto" style="margin-top:8px;"><summary>ポストシーズンの結果</summary>${postseasonSectionHTML()}</details>
+    </div>`;
+  if (stage === 'offseason') {
+    return `${champ}
+    <div class="card">
+      <h2>オフ：補強ガチャ</h2>
+      ${gachaStepHTML()}
+      ${UI.gachaSelecting ? '' : '<div class="row today-sub" style="justify-content:flex-start;"><button class="link-btn" id="gachaAutoBtn">監督におまかせで入れ替える</button></div>'}
+    </div>
+    ${skipToNextHTML('ガチャもおまかせで、次のシーズンへ')}`;
+  }
+  return `<div class="card next-season">
+    <h2>第${DB.currentSeasonNum + 1}シーズンへ</h2>
+    <div class="sub" style="margin-bottom:8px;">今季の成績を球団史に記録し、選手が1歳年を取ります（ベテランの引退・新人の加入・監督の交代があることも）。</div>
+    <button class="btn play-btn" id="newSeasonBtn">▶ 第${DB.currentSeasonNum + 1}シーズンを始める</button>
+  </div>
+  ${gachaResultsHTML()}
+  ${champ}`;
 }
 
 /* ---------- ポストシーズン ---------- */
@@ -609,7 +707,7 @@ export function wirePlayEvents(): void {
       UI.flash = 'レギュラーシーズンが終わってから実行できます。';
     } else {
       autoCompletePostseason();
-      UI.flash = 'ポストシーズンを自動で消化しました。';
+      UI.flash = `ポストシーズンを自動で消化しました。${myPostseasonNote()}`;
     }
     render();
   });
@@ -630,6 +728,7 @@ export function wirePlayEvents(): void {
     render();
   });
   on('#closeGachaBtn', () => { UI.gachaResults = null; render(); });
+  on('#gachaAutoBtn', () => { UI.gachaResults = gachaSwapAllTeams(null, null); render(); });
 
   const cardsChk = $<HTMLInputElement>('#cardsChk');
   if (cardsChk) cardsChk.onchange = () => { DB.options = { ...(DB.options ?? {}), decisionCards: cardsChk.checked }; };

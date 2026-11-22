@@ -659,3 +659,29 @@ tr.tap{cursor:pointer;}
 .o-row.target{border-color:rgba(242,182,50,.35);border-style:dashed;}
 .stat-pick{display:flex;align-items:center;gap:10px;padding:8px 12px;}
 .stat-pick select{flex:1;}
+
+/* シーズンの流れ（試合タブ上部） */
+.season-stepper{display:flex;gap:4px;margin:2px 0 10px;}
+.ss-item{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;}
+.ss-item:not(:last-child)::after{content:'';position:absolute;top:10px;left:calc(50% + 13px);right:calc(-50% + 13px);height:2px;background:var(--line);}
+.ss-item.done:not(:last-child)::after{background:var(--good);}
+.ss-dot{width:21px;height:21px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;
+  background:var(--graphite);color:var(--dim);border:1.5px solid var(--line);}
+.ss-item.now .ss-dot{background:var(--pencil);color:#2a1e04;border-color:var(--pencil);}
+.ss-item.done .ss-dot{background:var(--good);color:#1a1208;border-color:var(--good);}
+.ss-label{font-size:9.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.ss-item.now .ss-label{color:var(--pencil);font-weight:800;}
+.skip-line{text-align:center;margin:6px 0 12px;font-size:12px;}
+.skip-line .link-btn{color:var(--dim);}
+.season-end{text-align:center;}
+.season-end .two-col{text-align:left;}
+.se-team{font-size:18px;font-weight:900;margin-top:4px;}
+.se-record{font-size:13px;color:var(--cream);margin-top:2px;}
+.se-record b{color:var(--pencil);font-size:16px;}
+.se-msg{margin:8px auto 0;padding:6px 10px;border-radius:8px;background:var(--panel-light);font-size:13px;font-weight:800;display:inline-block;}
+.se-msg.good{background:rgba(127,216,88,.18);color:var(--good);}
+.list-row.mine{color:var(--pencil);font-weight:800;}
+.champ-card{text-align:center;}
+.champ-name{font-size:20px;font-weight:900;color:var(--pencil);margin:4px 0;}
+.champ-card details{text-align:left;}
+.next-season{text-align:center;}
