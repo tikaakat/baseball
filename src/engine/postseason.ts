@@ -56,3 +56,33 @@ export function autoCompletePostseason(): void {
   }
   progressPostseason();
 }
+
+/** マイチームの出番（未決着のシリーズ）が来るまで、他球団のシリーズを自動で進める */
+export function autoUntilTeamPlays(teamId: string): void {
+  if (!DB.postseason) startPostseason();
+  const ps = DB.postseason!;
+  const involves = (s: Series | null) => !!s && !s.winner && (s.teamA.id === teamId || s.teamB.id === teamId);
+  let guard = 0;
+  while (!ps.champion && guard < 100) {
+    progressPostseason();
+    if (SERIES_KEYS.some((k) => involves(ps.series[k]))) return;
+    if (!isAlive(teamId)) return;
+    SERIES_KEYS.forEach((key) => {
+      const s = ps.series[key];
+      if (s && !s.winner && !involves(s)) autoSimGame(newGame(s.teamA, s.teamB, null, key));
+    });
+    guard++;
+  }
+  progressPostseason();
+}
+
+/** ポストシーズンでまだ勝ち残っているか（出場していなければ false） */
+export function isAlive(teamId: string): boolean {
+  const ps = DB.postseason;
+  if (!ps) return false;
+  const all = SERIES_KEYS.map((k) => ps.series[k]).filter((s): s is Series => !!s);
+  const top = [ps.standings.H[0], ps.standings.B[0]].some((t) => t.id === teamId);
+  const inAny = top || all.some((s) => s.teamA.id === teamId || s.teamB.id === teamId);
+  if (!inAny) return false;
+  return !all.some((s) => s.winner && (s.teamA.id === teamId || s.teamB.id === teamId) && s.winner.id !== teamId);
+}

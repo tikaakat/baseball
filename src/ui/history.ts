@@ -30,11 +30,11 @@ export function ensureHistoryLoaded(): void {
 /* ---------- シーズン ---------- */
 function seasonTabHTML(history: SeasonRecord[]): string {
   if (!history.length) {
-    return `<div class="card"><div class="muted">まだ記録がありません。シーズンを最後まで終えて「新しいシーズンを始める」と、ここに1年ずつ記録されていきます。</div></div>`;
+    return `<div class="card"><div class="muted">まだ記録がありません。シーズンを最後まで終えて次のシーズンを始めると、ここに1年ずつ記録されていきます。</div></div>`;
   }
   const seasons = history.slice().sort((a, b) => b.seasonNum - a.seasonNum);
   const sel = seasons.find((s) => s.seasonNum === UI.historySeason) ?? seasons[0];
-  const opts = seasons.map((s) => `<option value="${s.seasonNum}" ${s === sel ? 'selected' : ''}>第${s.seasonNum}シーズン　${s.champion ? `優勝：${s.champion}` : ''}${s.championTeamId === UI.myTeamId ? ' 🏆' : ''}</option>`).join('');
+  const opts = seasons.map((s) => `<option value="${s.seasonNum}" ${s === sel ? 'selected' : ''}>第${s.seasonNum}季　${s.champion ? `優勝：${s.champion}` : ''}${s.championTeamId === UI.myTeamId ? ' 🏆' : ''}</option>`).join('');
   const picker = `<select id="seasonSel" class="season-select" aria-label="シーズンを選ぶ">${opts}</select>`;
   return picker + seasonDetailHTML(sel);
 }
@@ -54,7 +54,7 @@ function seasonDetailHTML(s: SeasonRecord): string {
   return `
   <div class="card">
     <div class="row between">
-      <h2 style="margin:0;">第${s.seasonNum}シーズン</h2>
+      <h2 style="margin:0;">第${s.seasonNum}季</h2>
       <button class="btn secondary small" data-share-season="${s.seasonNum}">📤 シェア</button>
     </div>
     ${s.champion ? `<div class="champ">🏆 ${s.champion}<span class="sub">　ペンシルシリーズ制覇</span></div>` : '<div class="muted">ポストシーズンは行われませんでした</div>'}

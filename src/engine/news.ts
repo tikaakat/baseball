@@ -121,7 +121,7 @@ export function checkSeasonRecords(day: number): void {
     DB.records![key] = { value, name: best.p.name, team: best.t.name, season: DB.currentSeasonNum };
     if (DB.currentSeasonNum > 1 && isNewHolder && !DB.recordNewsThisSeason!.includes(key)) {
       DB.recordNewsThisSeason!.push(key);
-      addNews(`📈 ${best.t.name}の${best.p.name}が${def.label}記録を更新！（${value}${def.unit}、従来は${rec ? `${rec.value}${def.unit}・第${rec.season}シーズン ${rec.name}` : 'なし'}）`, 'record', best.t.id, day);
+      addNews(`📈 ${best.t.name}の${best.p.name}が${def.label}記録を更新！（${value}${def.unit}、従来は${rec ? `${rec.value}${def.unit}・第${rec.season}季 ${rec.name}` : 'なし'}）`, 'record', best.t.id, day);
     }
   });
 }
@@ -143,6 +143,6 @@ export function onPlayerRetired(p: Player, team: Team): void {
 
 /** シーズン終了時のニュース（優勝・MVP） */
 export function onSeasonArchived(champion: string | null, mvps: string[]): void {
-  if (champion) addNews(`🏆 第${DB.currentSeasonNum}シーズンは${champion}がペンシルシリーズ制覇！`, 'title', null, null);
+  if (champion) addNews(`🏆 第${DB.currentSeasonNum}季は${champion}がペンシルシリーズ制覇！`, 'title', null, null);
   mvps.forEach((m) => addNews(`⭐ ${m}`, 'title', null, null));
 }

@@ -22,7 +22,7 @@ function summarize(rec: SeasonRecord): Summary {
   if (hr) lines.push(`💥 本塁打王　${hr.name}（${hr.team}）${hr.value}本`);
   const w = rec.pitchingLeaders?.w?.[0];
   if (w) lines.push(`🔥 最多勝　${w.name}（${w.team}）${w.value}勝`);
-  const title = `第${rec.seasonNum}シーズン`;
+  const title = `第${rec.seasonNum}季`;
   const head = mine ? `${title}、${mine.name}は${mine.rank}位（${mine.wins}勝${mine.losses}敗）でした。` : `${title}が終わりました。`;
   const text = `${head}${rec.champion ? `優勝は${rec.champion}！` : ''}\n${HASHTAG}\n${appUrl()}`;
   return { title, lines, text };

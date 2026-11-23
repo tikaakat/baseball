@@ -5,7 +5,7 @@ import { autoSimGame, changePitcher, currentBatter, fieldersOf, newGame, rollSte
 import { availableBench, decisionCard, executeBunt, executeIntentionalWalk, forceSteal, markCardShown, pencilHeadline, pinchHit, pitcherNow } from '../engine/tactics';
 import { currentPitcher, fatigueOf, findPlayer } from '../engine/pitching';
 import { ArchiveError, archiveCurrentSeason } from '../engine/history';
-import { autoCompletePostseason, progressPostseason, startPostseason } from '../engine/postseason';
+import { autoCompletePostseason, autoUntilTeamPlays, isAlive, progressPostseason, startPostseason } from '../engine/postseason';
 import { currentDay, lastDay, regularSeasonComplete } from '../engine/schedule';
 import { completeDaysThrough, simulateDays, simulateScheduleGame } from '../engine/days';
 import { startNewSeason } from '../engine/season';
@@ -126,10 +126,12 @@ function scheduleHTML(): string {
   const today = unplayed[0] ?? null;
 
   const shareHtml = UI.lastArchived ? `<div class="card share-card row between">
-      <div><b>第${UI.lastArchived.seasonNum}シーズンのまとめ</b><div class="muted" style="font-size:11px;">結果を画像にしてSNSで共有</div></div>
+      <div><b>第${UI.lastArchived.seasonNum}季のまとめ</b><div class="muted" style="font-size:11px;">結果を画像にしてSNSで共有</div></div>
       <div class="row" style="gap:6px;"><button class="btn small" data-share="last">📤 シェア</button><button class="btn secondary small" id="closeShareBtn">✕</button></div>
     </div>` : '';
 
+  // 念のため：マイチームの日程だけ先に終わっていたら、残りの日程を消化してからオフへ
+  if (!today && !seasonDone()) completeDaysThrough(lastDay(DB.schedule));
   const stage = currentStage();
   if (!today || stage !== 'regular') {
     const body = stage === 'seasonEnd' ? seasonEndHTML() : stage === 'postseason' ? postseasonStageHTML() : offseasonStageHTML(stage);
@@ -245,8 +247,18 @@ function postseasonStageHTML(): string {
     const has = (k: SeriesKey) => { const s = ps.series[k]; return s && !s.winner && (s.teamA.id === UI.myTeamId || s.teamB.id === UI.myTeamId) ? 0 : 1; };
     return has(a) - has(b);
   });
+  const me = UI.myTeamId;
+  const myActive = !!me && SERIES_KEYS.some((k) => { const s = ps.series[k]; return s && !s.winner && (s.teamA.id === me || s.teamB.id === me); });
+  const alive = !!me && isAlive(me);
+  const head = myActive
+    ? '<div class="sub">マイチームのシリーズが始まっています。1試合ずつ観るか、自動で進められます。</div>'
+    : alive
+      ? `<div class="sub" style="margin-bottom:8px;">マイチームはリーグ1位のため、ファイナルから登場します（1勝のアドバンテージつき）。</div>
+         <button class="btn play-btn" id="psUntilMineBtn">▶ マイチームの出番まで進める</button>`
+      : `<div class="sub">${me && (ps.standings.H.slice(0, 3).concat(ps.standings.B.slice(0, 3))).some((t) => t.id === me) ? 'マイチームは敗退しました。' : 'マイチームは出場していません。'}残りの試合を観戦するか、自動で消化できます。</div>`;
   return `<div class="card">
-    <div class="row between"><h2 style="margin:0;">ポストシーズン</h2><button class="btn small secondary" id="simPostseasonBtn">残りを自動で消化</button></div>
+    <div class="row between"><h2 style="margin:0;">ポストシーズン</h2><button class="btn small ${myActive || alive ? 'secondary' : ''}" id="simPostseasonBtn">残りを自動で消化</button></div>
+    ${head}
   </div>
   ${mineFirst.map((key) => seriesCard(key, ps.series[key])).join('')}
   ${skipToNextHTML()}`;
@@ -281,9 +293,9 @@ function offseasonStageHTML(stage: Stage): string {
     ${skipToNextHTML('ガチャもおまかせで、次のシーズンへ')}`;
   }
   return `<div class="card next-season">
-    <h2>第${DB.currentSeasonNum + 1}シーズンへ</h2>
+    <h2>第${DB.currentSeasonNum + 1}季へ</h2>
     <div class="sub" style="margin-bottom:8px;">今季の成績を球団史に記録し、選手が1歳年を取ります（ベテランの引退・新人の加入・監督の交代があることも）。</div>
-    <button class="btn play-btn" id="newSeasonBtn">▶ 第${DB.currentSeasonNum + 1}シーズンを始める</button>
+    <button class="btn play-btn" id="newSeasonBtn">▶ 第${DB.currentSeasonNum + 1}季を始める</button>
   </div>
   ${gachaResultsHTML()}
   ${champ}`;
@@ -457,7 +469,7 @@ function playScreenHTML(game: Game): string {
       ${abilityFlashHtml}
       <div class="finish-banner">
         <div class="score">${w}</div>
-        <button class="btn" id="backToScheduleBtn">${game.seriesKey ? '順位表・シリーズに戻る' : '日程に戻る'}</button>
+        <button class="btn" id="backToScheduleBtn">${game.seriesKey ? 'ポストシーズンに戻る' : '日程に戻る'}</button>
       </div>
       ${boxScoreHTML(game)}
       <div class="log-box" id="logBox">${logHtml}</div>
@@ -728,6 +740,11 @@ export function wirePlayEvents(): void {
     render();
   });
   on('#closeGachaBtn', () => { UI.gachaResults = null; render(); });
+  on('#psUntilMineBtn', () => {
+    autoUntilTeamPlays(UI.myTeamId!);
+    UI.flash = isAlive(UI.myTeamId!) ? 'マイチームの出番です！' : `ポストシーズンが進みました。${myPostseasonNote()}`;
+    render();
+  });
   on('#gachaAutoBtn', () => { UI.gachaResults = gachaSwapAllTeams(null, null); render(); });
 
   const cardsChk = $<HTMLInputElement>('#cardsChk');
@@ -781,9 +798,7 @@ export function wirePlayEvents(): void {
 
   on('#backToScheduleBtn', () => {
     releaseRoll();
-    const wasPostseason = !!UI.liveGame?.seriesKey;
-    UI.liveGame = null;
-    if (wasPostseason) UI.tab = 'standings';
+    UI.liveGame = null; // ポストシーズンの試合も、試合タブのポストシーズン画面に戻る
     render();
   });
 }
